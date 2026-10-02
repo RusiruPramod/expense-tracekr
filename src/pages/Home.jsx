@@ -99,10 +99,12 @@ export function Home() {
     try {
       const { seedInitialData } = await import('../lib/seed')
       toast.loading('Creating Rusiru, Sahan & Kalum scenario...', { id: 'seed' })
-      await seedInitialData(user.uid, user.displayName || 'Rusiru')
-      toast.success('Loaded scenario: Rusiru, Sahan & Kalum!', { id: 'seed' })
+      const { groupId } = await seedInitialData(user.uid, user.displayName || 'Rusiru')
+      toast.success('✅ Scenario loaded! Rusiru, Sahan & Kalum', { id: 'seed' })
+      // The onSnapshot listener in GroupContext will automatically pick up the new group
     } catch (err) {
-      toast.error(err.message, { id: 'seed' })
+      console.error(err)
+      toast.error(err.message || 'Failed to seed data', { id: 'seed' })
     }
   }
 
