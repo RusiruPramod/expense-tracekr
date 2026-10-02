@@ -1,7 +1,7 @@
 /**
  * src/components/expense/DailySummaryCard.jsx
  * Daily end-of-day calculation & summary table card.
- * Rich sleek theme with dark navy card styling.
+ * Clean, subtle light card styling.
  */
 
 import { useState } from 'react'

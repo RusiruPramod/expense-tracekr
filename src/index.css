@@ -230,6 +230,18 @@ body {
   font-family: inherit;
   min-height: 48px;
 }
+.input.pl-11,
+.input.\!pl-11 {
+  padding-left: 44px;
+}
+.input.pr-12,
+.input.\!pr-12 {
+  padding-right: 48px;
+}
+.input.pl-9,
+.input.\!pl-9 {
+  padding-left: 38px;
+}
 .input:focus {
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
@@ -414,10 +426,5 @@ body {
 
 /* ── Dark mode (optional) ────────────────────────────────── */
 @media (prefers-color-scheme: dark) {
-  /* No dark mode by default — only via explicit toggle */
-}
-
-.dark html {
-  background: #0f172a;
-  color: #f8fafc;
+  /* Keep clean light theme default */
 }

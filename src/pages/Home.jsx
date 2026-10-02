@@ -185,13 +185,13 @@ export function Home() {
       {/* ── Search bar ── */}
       <div className="px-3 sm:px-4 md:px-0 pb-3">
         <div className="relative">
-          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('home.search')}
-            className="input pl-9 text-sm py-2.5 min-h-[40px]"
+            className="input !pl-9 text-sm py-2.5 min-h-[40px]"
           />
         </div>
       </div>

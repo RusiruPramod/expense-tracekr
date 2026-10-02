@@ -106,13 +106,13 @@ export function Auth() {
               {/* Name (signup only) */}
               {mode === 'signup' && (
                 <div className="relative">
-                  <User size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <User size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={t('auth.name')}
-                    className="input pl-11"
+                    className="input !pl-11"
                     autoComplete="name"
                     required
                   />
@@ -121,13 +121,13 @@ export function Auth() {
 
               {/* Email */}
               <div className="relative">
-                <Mail size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder={t('auth.email')}
-                  className="input pl-11"
+                  className="input !pl-11"
                   autoComplete="email"
                   required
                 />
@@ -136,20 +136,20 @@ export function Auth() {
               {/* Password (not for reset) */}
               {mode !== 'reset' && (
                 <div className="relative">
-                  <Lock size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Lock size={17} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                   <input
                     type={showPw ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={t('auth.password')}
-                    className="input pl-11 pr-12"
+                    className="input !pl-11 !pr-12"
                     autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPw((p) => !p)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                   >
                     {showPw ? <EyeOff size={17} /> : <Eye size={17} />}
