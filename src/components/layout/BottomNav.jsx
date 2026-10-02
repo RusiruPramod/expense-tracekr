@@ -20,7 +20,7 @@ export function BottomNav({ onAddPress }) {
   const { t } = useTranslation()
 
   return (
-    <nav className="bottom-nav" aria-label="Main navigation">
+    <nav className="bottom-nav md:hidden" aria-label="Main navigation">
       <div className="flex items-end justify-around px-2 h-16">
         {tabs.map((tab) => {
           if (tab.isFab) {

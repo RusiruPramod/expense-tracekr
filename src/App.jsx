@@ -25,13 +25,13 @@ function ProfilePage() {
   const { t, i18n } = useTranslation()
 
   return (
-    <div className="page-wrapper min-h-dvh bg-gray-50 pb-24 pt-safe">
-      <div className="p-4 bg-white border-b border-gray-100 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-full bg-blue-600 text-white font-bold text-xl flex items-center justify-center">
+    <div className="max-w-3xl lg:max-w-5xl xl:max-w-6xl mx-auto min-h-dvh bg-gray-50 pb-24 md:pb-16 pt-safe">
+      <div className="p-4 md:pt-6 md:pb-4 bg-white md:bg-transparent border-b border-gray-100 md:border-none flex items-center gap-4">
+        <div className="w-14 h-14 rounded-full bg-blue-600 text-white font-bold text-xl flex items-center justify-center shrink-0">
           {user?.displayName ? user.displayName[0].toUpperCase() : 'U'}
         </div>
         <div>
-          <h2 className="text-lg font-bold text-gray-900">{user?.displayName || 'User'}</h2>
+          <h1 className="text-lg font-bold text-gray-900">{user?.displayName || 'User'}</h1>
           <p className="text-xs text-gray-500">{user?.email}</p>
         </div>
       </div>
@@ -68,21 +68,29 @@ function ProfilePage() {
   )
 }
 
+import { DesktopNav } from './components/layout/DesktopNav'
+
 function MainLayout() {
   const [showAddForm, setShowAddForm] = useState(false)
   const { t } = useTranslation()
 
   return (
-    <div className="relative min-h-dvh bg-gray-50 max-w-[430px] mx-auto shadow-2xl overflow-hidden border-x border-gray-100">
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/people" element={<People />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+    <div className="relative min-h-dvh bg-gray-50 flex flex-col w-full overflow-x-hidden">
+      {/* Desktop Top Navbar — full width, sticky */}
+      <DesktopNav onAddPress={() => setShowAddForm(true)} />
 
-      {/* Bottom navigation */}
+      {/* Page content — grows to fill, scrollable */}
+      <main className="flex-1 w-full overflow-y-auto">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/people" element={<People />} />
+          <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+
+      {/* Mobile Bottom navigation — hidden on md+ */}
       <BottomNav onAddPress={() => setShowAddForm(true)} />
 
       {/* Add expense sheet */}

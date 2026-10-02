@@ -124,7 +124,7 @@ export function Home() {
       />
 
       {/* ── Month switcher ── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
+      <div className="flex items-center justify-between px-3 sm:px-4 md:px-0 py-3 bg-white border-b border-gray-100">
         <button
           onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
           className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
@@ -145,7 +145,7 @@ export function Home() {
       </div>
 
       {/* ── Quick Scenario Seed Banner ── */}
-      <div className="px-4 pt-3 pb-1">
+      <div className="px-3 sm:px-4 md:px-0 pt-3 pb-1">
         <button
           onClick={handleSeedScenario}
           className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:opacity-95 transition-opacity"
@@ -158,7 +158,7 @@ export function Home() {
       {loading ? (
         <SkeletonSummary />
       ) : (
-        <div className="grid grid-cols-3 gap-2.5 p-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-5 px-3 sm:px-4 md:px-0 py-3 md:py-4">
           <SummaryCard
             label={t('home.owed')}
             amount={balance.owed}
@@ -181,7 +181,7 @@ export function Home() {
       )}
 
       {/* ── Search bar ── */}
-      <div className="px-4 pb-3">
+      <div className="px-3 sm:px-4 md:px-0 pb-3">
         <div className="relative">
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -211,7 +211,7 @@ export function Home() {
           </button>
         </div>
       ) : (
-        <div className="bg-white">
+        <div className="md:rounded-2xl md:border md:border-gray-100 md:shadow-sm overflow-hidden bg-white">
           {sortedDates.map((dateKey) => {
             const dayExpenses = grouped.get(dateKey)
             const dayTotal    = dayExpenses.reduce((s, e) => s + e.amount, 0)
@@ -221,9 +221,9 @@ export function Home() {
             })
 
             return (
-              <section key={dateKey} className="border-b border-gray-100 pb-2">
-                {/* Sticky date header */}
-                <div className="date-header">
+              <section key={dateKey} className="border-b border-gray-100 last:border-b-0 pb-2">
+                {/* Date header — sticky on mobile, normal on desktop */}
+                <div className="date-header md:sticky-none">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                     {label}
                   </span>
@@ -301,19 +301,19 @@ export function Home() {
 /** Summary card: owed / owes / net */
 function SummaryCard({ label, amount, type, currency }) {
   const colorClass = {
-    credit: 'text-green-700',
-    debit:  'text-red-600',
+    credit: 'text-emerald-700',
+    debit:  'text-rose-600',
   }[type] || 'text-gray-700'
 
   const bgClass = {
-    credit: 'bg-green-50',
-    debit:  'bg-red-50',
-  }[type] || 'bg-gray-50'
+    credit: 'bg-emerald-50/80 border-emerald-100',
+    debit:  'bg-rose-50/80 border-rose-100',
+  }[type] || 'bg-gray-50 border-gray-200'
 
   return (
-    <div className={`card p-3 ${bgClass}`}>
-      <p className="text-[10px] text-gray-400 font-medium leading-tight mb-1">{label}</p>
-      <p className={`text-sm font-bold leading-tight amount-display ${colorClass}`}>
+    <div className={`card p-2.5 sm:p-3 md:p-5 border ${bgClass} transition-all`}>
+      <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5 md:mb-1 truncate">{label}</p>
+      <p className={`text-xs sm:text-sm md:text-2xl font-bold md:font-black leading-tight amount-display ${colorClass} break-all`}>
         {formatCurrency(Math.abs(amount), currency)}
       </p>
     </div>

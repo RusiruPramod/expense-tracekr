@@ -130,7 +130,7 @@ export function People() {
       />
 
       {/* Quick Add Banner */}
-      <div className="px-4 pt-3 pb-1">
+      <div className="px-4 md:px-0 pt-3 pb-1">
         <button
           onClick={() => setAddSheetOpen(true)}
           className="w-full py-2.5 px-3 rounded-xl bg-blue-50 border border-blue-200/80 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 shadow-2xs hover:bg-blue-100/70 transition-colors"
@@ -149,7 +149,7 @@ export function People() {
           hint="Tap + Add New Friend above to add friends to this group."
         />
       ) : (
-        <div className="p-4 space-y-2">
+        <div className="p-4 md:px-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {personBalances.map(({ member, net }) => (
             <PersonRow
               key={member.id}

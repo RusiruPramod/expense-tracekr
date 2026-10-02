@@ -70,17 +70,18 @@ export function Auth() {
   }
 
   return (
-    <div className="page-wrapper flex flex-col min-h-dvh bg-white">
-      {/* Top illustration */}
-      <div className="bg-gray-50 pt-safe">
-        <div className="flex items-center justify-center py-12">
-          <div className="w-20 h-20 rounded-3xl bg-gray-900 flex items-center justify-center shadow-xl">
-            <span className="text-white text-3xl font-black">₹</span>
+    <div className="min-h-dvh flex flex-col items-center justify-center bg-gray-50 p-4 py-8 md:py-12">
+      <div className="w-full max-w-md bg-white rounded-3xl border border-gray-200/80 shadow-xl overflow-hidden">
+        {/* Top illustration */}
+        <div className="bg-gray-50 pt-safe">
+          <div className="flex items-center justify-center py-8">
+            <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg">
+              <span className="text-white text-3xl font-black">₹</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex-1 p-6">
+        <div className="p-6">
         {/* Header */}
         <AnimatePresence mode="wait">
           <motion.div
@@ -217,5 +218,6 @@ export function Auth() {
         </AnimatePresence>
       </div>
     </div>
-  )
+  </div>
+)
 }

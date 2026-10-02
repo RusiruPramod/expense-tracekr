@@ -126,26 +126,25 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* ── Bottom tab bar ─────────────────────────────────────── */
+/* ── Bottom tab bar (Mobile) ─────────────────────────────── */
 .bottom-nav {
   position: fixed;
   bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
   width: 100%;
-  max-width: 430px;
   background: #ffffff;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid #e5e7eb;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   z-index: 30;
 }
 
 /* ── Page wrapper ───────────────────────────────────────── */
 .page-wrapper {
-  max-width: 430px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   min-height: 100dvh;
-  background: #f9fafb;
   position: relative;
 }
 
@@ -159,7 +158,7 @@ body {
 
 /* ── Primary button ─────────────────────────────────────── */
 .btn-primary {
-  background: #2563eb;
+  background: #111827;
   color: #ffffff;
   border-radius: var(--radius-btn);
   padding: 14px 24px;
@@ -174,9 +173,8 @@ body {
   border: none;
   cursor: pointer;
   width: 100%;
-  box-shadow: 0 2px 8px rgb(37 99 235 / 0.25);
 }
-.btn-primary:hover  { background: #1d4ed8; }
+.btn-primary:hover  { background: #1f2937; }
 .btn-primary:active { transform: scale(0.98); }
 
 .btn-blue {
@@ -257,9 +255,9 @@ body {
   min-height: 36px;
 }
 .chip.active {
-  background: #2563eb;
+  background: #111827;
   color: #ffffff;
-  border-color: #2563eb;
+  border-color: #111827;
 }
 .chip-blue.active {
   background: #2563eb;
@@ -378,19 +376,18 @@ body {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #2563eb;
+  background: #111827;
   color: #ffffff;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgb(37 99 235 / 0.35);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
   transition: transform 150ms ease, box-shadow 150ms ease;
   margin-top: -28px;
 }
-.fab:hover  { background: #1d4ed8; }
-.fab:active { transform: scale(0.93); box-shadow: 0 2px 8px rgb(37 99 235 / 0.25); }
+.fab:active { transform: scale(0.93); box-shadow: 0 2px 8px rgb(0 0 0 / 0.15); }
 
 /* ── Section label ───────────────────────────────────────── */
 .section-label {
@@ -401,6 +398,18 @@ body {
   color: #9ca3af;
   padding: 0 16px;
   margin: 16px 0 6px;
+}
+
+/* ── No scrollbar (for horizontal scroll areas) ──────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Desktop: date-header not sticky ────────────────────── */
+@media (min-width: 768px) {
+  .date-header {
+    position: static;
+    padding: 10px 0 6px;
+  }
 }
 
 /* ── Dark mode (optional) ────────────────────────────────── */
