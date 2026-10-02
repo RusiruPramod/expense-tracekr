@@ -322,8 +322,8 @@ export function ExpenseForm({ onClose, editExpense = null }) {
               onClick={() => setSplitMode(mode)}
               className={`flex-1 py-2 text-xs font-semibold transition-colors ${
                 splitMode === mode
-                  ? 'bg-gray-900 text-white'
-                  : 'bg-white text-gray-500 hover:bg-gray-50'
+                  ? 'bg-blue-600 text-white font-bold shadow-xs'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
               }`}
             >
               {t(`expense.${mode}`)}

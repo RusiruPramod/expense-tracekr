@@ -159,7 +159,7 @@ body {
 
 /* ── Primary button ─────────────────────────────────────── */
 .btn-primary {
-  background: #111827;
+  background: #2563eb;
   color: #ffffff;
   border-radius: var(--radius-btn);
   padding: 14px 24px;
@@ -174,8 +174,9 @@ body {
   border: none;
   cursor: pointer;
   width: 100%;
+  box-shadow: 0 2px 8px rgb(37 99 235 / 0.25);
 }
-.btn-primary:hover  { background: #1f2937; }
+.btn-primary:hover  { background: #1d4ed8; }
 .btn-primary:active { transform: scale(0.98); }
 
 .btn-blue {
@@ -256,9 +257,9 @@ body {
   min-height: 36px;
 }
 .chip.active {
-  background: #111827;
+  background: #2563eb;
   color: #ffffff;
-  border-color: #111827;
+  border-color: #2563eb;
 }
 .chip-blue.active {
   background: #2563eb;
@@ -377,18 +378,19 @@ body {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #111827;
+  background: #2563eb;
   color: #ffffff;
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  box-shadow: 0 4px 16px rgb(37 99 235 / 0.35);
   transition: transform 150ms ease, box-shadow 150ms ease;
   margin-top: -28px;
 }
-.fab:active { transform: scale(0.93); box-shadow: 0 2px 8px rgb(0 0 0 / 0.15); }
+.fab:hover  { background: #1d4ed8; }
+.fab:active { transform: scale(0.93); box-shadow: 0 2px 8px rgb(37 99 235 / 0.25); }
 
 /* ── Section label ───────────────────────────────────────── */
 .section-label {

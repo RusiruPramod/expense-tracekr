@@ -201,19 +201,19 @@ export function ReportsPage() {
           </div>
 
           {/* 3. Simplified Final Settlement Plan */}
-          <div className="card p-4 space-y-3 bg-slate-900 text-white">
-            <div className="flex items-center justify-between border-b border-gray-800 pb-2">
-              <h3 className="text-sm font-bold text-gray-100 flex items-center gap-2">
-                <ArrowRightLeft size={16} className="text-emerald-400" />
+          <div className="card p-4 space-y-3 bg-white border border-gray-100 shadow-sm text-gray-900">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <ArrowRightLeft size={16} className="text-emerald-600" />
                 Automatic Settlement Plan
               </h3>
-              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md font-semibold">
+              <span className="text-[10px] text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md font-bold border border-emerald-200/60">
                 Optimized
               </span>
             </div>
 
             {summary.simplifiedSettlements.length === 0 ? (
-              <div className="flex items-center gap-2 text-emerald-400 py-2 text-xs">
+              <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 p-3 rounded-xl border border-emerald-100 text-xs font-semibold">
                 <CheckCircle2 size={16} />
                 <span>All balances are completely settled for this month!</span>
               </div>
@@ -222,14 +222,14 @@ export function ReportsPage() {
                 {summary.simplifiedSettlements.map((trans, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/60 text-xs"
+                    className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/70 border border-emerald-100/90 text-xs shadow-2xs"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-rose-400">{trans.fromName}</span>
-                      <span className="text-gray-400">pays</span>
-                      <span className="font-bold text-emerald-400">{trans.toName}</span>
+                    <div className="flex items-center gap-1.5 text-sm">
+                      <span className="font-bold text-rose-700">{trans.fromName}</span>
+                      <span className="text-gray-500 font-medium">pays</span>
+                      <span className="font-bold text-emerald-700">{trans.toName}</span>
                     </div>
-                    <span className="font-black text-white amount-display">
+                    <span className="font-black text-gray-900 amount-display text-sm">
                       {formatCurrency(trans.amount, currency)}
                     </span>
                   </div>
