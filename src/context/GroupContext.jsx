@@ -48,21 +48,29 @@ export function GroupProvider({ children }) {
 
       // Registered members: read from users/{uid} in Firestore
       for (const uid of group.memberIds || []) {
-        const snap = await getDoc(doc(db, 'users', uid))
         let name = 'User'
-
-        if (snap.exists() && snap.data().name) {
-          // Use the Firestore stored name (seed sets this to 'Rusiru' etc.)
-          name = snap.data().name
-        } else if (currentUser?.uid === uid) {
-          // Fallback: Firebase Auth displayName
-          name = currentUser.displayName || 'Rusiru'
+        let email = ''
+        try {
+          const snap = await getDoc(doc(db, 'users', uid))
+          if (snap.exists() && snap.data().name) {
+            name = snap.data().name
+            email = snap.data().email || ''
+          } else if (currentUser?.uid === uid) {
+            name = currentUser.displayName || 'Rusiru'
+            email = currentUser.email || ''
+          }
+        } catch (e) {
+          console.warn('Could not load profile for member', uid, e)
+          if (currentUser?.uid === uid) {
+            name = currentUser.displayName || 'Rusiru'
+            email = currentUser.email || ''
+          }
         }
 
         resolved.push({
           id:      uid,
           name,
-          email:   snap.data()?.email || currentUser?.email || '',
+          email,
           isGuest: false,
         })
       }
@@ -112,6 +120,8 @@ export function GroupProvider({ children }) {
       if (gs.length === 0) {
         setActiveGroup(null)
         setMembers([])
+        setExpenses([])
+        setSettlements([])
         setLoading(false)
         return
       }
@@ -124,6 +134,7 @@ export function GroupProvider({ children }) {
         await selectGroup(found)
       }
     }, (err) => {
+      console.warn('Groups listener error:', err)
       setError(err.message)
       setLoading(false)
     })
@@ -150,6 +161,7 @@ export function GroupProvider({ children }) {
       setExpenses(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
       setLoading(false)
     }, (err) => {
+      console.warn('Expenses listener error:', err)
       setError(err.message)
       setLoading(false)
     })
@@ -171,6 +183,8 @@ export function GroupProvider({ children }) {
 
     const unsub = onSnapshot(q, (snap) => {
       setSettlements(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    }, (err) => {
+      console.warn('Settlements listener error:', err)
     })
 
     return unsub
