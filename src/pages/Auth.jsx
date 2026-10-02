@@ -12,12 +12,13 @@ import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 const FIREBASE_ERROR_MAP = {
-  'auth/invalid-email':       'auth.errors.invalidEmail',
-  'auth/weak-password':       'auth.errors.weakPassword',
-  'auth/email-already-in-use':'auth.errors.emailInUse',
-  'auth/user-not-found':      'auth.errors.userNotFound',
-  'auth/wrong-password':      'auth.errors.wrongPassword',
-  'auth/network-request-failed': 'auth.errors.networkError',
+  'auth/invalid-email':         'auth.errors.invalidEmail',
+  'auth/invalid-credential':    'auth.errors.invalidCredential',
+  'auth/user-not-found':        'auth.errors.invalidCredential',
+  'auth/wrong-password':        'auth.errors.invalidCredential',
+  'auth/email-already-in-use':  'auth.errors.emailInUse',
+  'auth/weak-password':         'auth.errors.weakPassword',
+  'auth/network-request-failed':'auth.errors.networkError',
 }
 
 export function Auth() {
@@ -183,6 +184,7 @@ export function Auth() {
                 </div>
 
                 <button
+                  type="button"
                   onClick={handleGoogle}
                   disabled={loading}
                   className="btn-ghost w-full"

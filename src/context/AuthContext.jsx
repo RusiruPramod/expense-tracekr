@@ -9,6 +9,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signInWithPopup,
+  signInAnonymously,
   signOut,
   updateProfile,
   sendPasswordResetEmail,
@@ -52,8 +53,8 @@ export function AuthProvider({ children }) {
     const ref = doc(db, 'users', firebaseUser.uid)
     const snap = await getDoc(ref)
     const data = {
-      name:      firebaseUser.displayName || extra.name || 'Anonymous',
-      email:     firebaseUser.email,
+      name:      firebaseUser.displayName || extra.name || 'Rusiru',
+      email:     firebaseUser.email || 'guest@expensetracker.local',
       photoURL:  firebaseUser.photoURL || null,
       language:  localStorage.getItem('expense_tracker_lang') || 'en',
       updatedAt: serverTimestamp(),
@@ -82,6 +83,12 @@ export function AuthProvider({ children }) {
     return result
   }
 
+  const signInGuest = async () => {
+    const result = await signInAnonymously(auth)
+    await upsertUserDoc(result.user, { name: 'Rusiru (Guest)' })
+    return result
+  }
+
   const logout = () => signOut(auth)
 
   const resetPassword = (email) => sendPasswordResetEmail(auth, email)
@@ -101,6 +108,7 @@ export function AuthProvider({ children }) {
     signIn,
     signUp,
     signInWithGoogle,
+    signInGuest,
     logout,
     resetPassword,
     updateUserProfile,

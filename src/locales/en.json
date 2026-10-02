@@ -26,6 +26,7 @@
     "logout": "Sign out",
     "errors": {
       "invalidEmail": "Please enter a valid email.",
+      "invalidCredential": "Invalid email or password. If you don't have an account, click 'Create account' below or use Quick Demo Sign In.",
       "weakPassword": "Password must be at least 6 characters.",
       "emailInUse": "This email is already registered.",
       "userNotFound": "No account found with this email.",
