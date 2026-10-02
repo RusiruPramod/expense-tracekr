@@ -1,6 +1,7 @@
 /**
  * src/lib/seed.js
- * Automatic Firestore seeding script to populate initial sample group & expenses.
+ * Automatic Firestore seeding script to populate initial sample group & expenses
+ * matching the real-world scenario: Rusiru, Sahan, and Kalum.
  */
 
 import {
@@ -13,31 +14,32 @@ import {
 import { db } from './firebase'
 import { generateGuestId } from './format'
 
-export async function seedInitialData(userId, userName = 'You') {
+export async function seedInitialData(userId, userName = 'Rusiru') {
   if (!userId) throw new Error('User ID is required to seed data.')
 
-  // 1. Ensure User Profile exists
+  // 1. Ensure User Profile exists with name 'Rusiru' (or current user name)
+  const displayName = userName && userName !== 'User' ? userName : 'Rusiru'
   const userRef = doc(db, 'users', userId)
   await setDoc(userRef, {
-    name: userName,
+    name: displayName,
     updatedAt: serverTimestamp(),
     createdAt: serverTimestamp(),
   }, { merge: true })
 
-  // 2. Create Guest Members
-  const kasunId = generateGuestId()
-  const nimalId = generateGuestId()
+  // 2. Create Friends / Guests: Sahan and Kalum
+  const sahanId = generateGuestId()
+  const kalumId = generateGuestId()
 
   const guestMembers = [
-    { id: kasunId, name: 'Kasun' },
-    { id: nimalId, name: 'Nimal' },
+    { id: sahanId, name: 'Sahan' },
+    { id: kalumId, name: 'Kalum' },
   ]
 
   const inviteCode = Math.random().toString(36).slice(2, 8).toUpperCase()
 
   // 3. Create Group
   const groupRef = await addDoc(collection(db, 'groups'), {
-    name: 'Close Friends & Daily Expenses',
+    name: 'Rusiru, Sahan & Kalum Expenses',
     currency: 'LKR',
     memberIds: [userId],
     guestMembers,
@@ -49,57 +51,69 @@ export async function seedInitialData(userId, userName = 'You') {
   const groupId = groupRef.id
   const expensesRef = collection(db, 'groups', groupId, 'expenses')
 
-  // 4. Sample Expenses
-  const today = new Date()
-  const yesterday = new Date(today.getTime() - 86400000)
+  // Sample Dates: 10/01, 10/02, 10/03 of current year/month
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() // 0-indexed
 
-  // Expense 1: Dinner paid by User (4,500 LKR, split 3 ways)
+  const date1001 = new Date(year, month, 1, 12, 0, 0)
+  const date1002 = new Date(year, month, 2, 14, 30, 0)
+  const date1003 = new Date(year, month, 3, 19, 15, 0)
+
+  // Expense 1: 10/01 – Rusiru paid for Food – Rs. 3,000 (Equal split: 1000 each)
   await addDoc(expensesRef, {
-    title: 'Dinner & Drinks',
-    amount: 4500,
+    title: 'Food',
+    amount: 3000,
     paidBy: userId,
     category: 'food',
-    date: today,
+    date: date1001,
     splitMode: 'equal',
-    splitDetails: [
-      { memberId: userId, amount: 1500, isGuest: false },
-      { memberId: kasunId, amount: 1500, isGuest: true },
-      { memberId: nimalId, amount: 1500, isGuest: true },
+    splits: [
+      { memberId: userId, amount: 1000 },
+      { memberId: sahanId, amount: 1000 },
+      { memberId: kalumId, amount: 1000 },
     ],
-    notes: 'Dinner at Beach Restaurant',
+    note: 'Common lunch and food expenses',
     createdBy: userId,
     createdAt: serverTimestamp(),
   })
 
-  // Expense 2: Supermarket paid by Kasun (1,800 LKR, split 3 ways)
+  // Expense 2: 10/02 – Rusiru paid for Shoes – Rs. 2,000 (Rusiru 500, Sahan 1000, Kalum 500)
   await addDoc(expensesRef, {
-    title: 'Supermarket Groceries',
-    amount: 1800,
-    paidBy: kasunId,
-    category: 'groceries',
-    date: yesterday,
-    splitMode: 'equal',
-    splitDetails: [
-      { memberId: userId, amount: 600, isGuest: false },
-      { memberId: kasunId, amount: 600, isGuest: true },
-      { memberId: nimalId, amount: 600, isGuest: true },
+    title: 'Shoes',
+    amount: 2000,
+    paidBy: userId,
+    category: 'other',
+    date: date1002,
+    splitMode: 'manual',
+    splits: [
+      { memberId: userId, amount: 500 },
+      { memberId: sahanId, amount: 1000 },
+      { memberId: kalumId, amount: 500 },
     ],
-    notes: 'Snacks and soft drinks',
+    note: 'Footwear & accessories purchase',
     createdBy: userId,
     createdAt: serverTimestamp(),
   })
 
-  // 5. Sample Settlement
-  const settlementsRef = collection(db, 'groups', groupId, 'settlements')
-  await addDoc(settlementsRef, {
-    fromMemberId: kasunId,
-    toMemberId: userId,
+  // Expense 3: 10/03 – Kalum paid for Bites – Rs. 1,000 (Rusiru 100, Sahan 700, Kalum 200)
+  await addDoc(expensesRef, {
+    title: 'Bites',
     amount: 1000,
-    date: today,
-    notes: 'Partial settlement via Bank Transfer',
+    paidBy: kalumId,
+    category: 'food',
+    date: date1003,
+    splitMode: 'manual',
+    splits: [
+      { memberId: userId, amount: 100 },
+      { memberId: sahanId, amount: 700 },
+      { memberId: kalumId, amount: 200 },
+    ],
+    note: 'Evening snacks and bites',
     createdBy: userId,
     createdAt: serverTimestamp(),
   })
 
   return { groupId, inviteCode }
 }
+
