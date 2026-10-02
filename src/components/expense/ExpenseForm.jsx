@@ -75,6 +75,16 @@ export function ExpenseForm({ onClose, editExpense = null }) {
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
 
+  // Ensure default paidBy and selectedMembers are properly set when members load
+  useEffect(() => {
+    if (!paidBy && members.length > 0) {
+      setPaidBy(user?.uid && members.some((m) => m.id === user.uid) ? user.uid : members[0].id)
+    }
+    if (!editExpense && selectedMembers.length === 0 && members.length > 0) {
+      setSelectedMembers(members.map((m) => m.id))
+    }
+  }, [members, paidBy, user?.uid, editExpense, selectedMembers.length])
+
   const totalAmount = parseFloat(amount) || 0
 
   // ── Computed splits ───────────────────────────────────────
