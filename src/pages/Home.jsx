@@ -19,6 +19,7 @@ import { ExpenseForm } from '../components/expense/ExpenseForm'
 import { SkeletonList, SkeletonSummary } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { CATEGORY_KEYS } from '../components/expense/CategoryIcon'
+import { DailySummaryCard } from '../components/expense/DailySummaryCard'
 import {
   getPersonBalance,
   calculateBalancesFlat,
@@ -44,7 +45,6 @@ export function Home() {
   // ── Balance summary ───────────────────────────────────────
   const balance = useMemo(() => {
     if (!user?.uid || !expenses.length) return { owed: 0, owes: 0, net: 0 }
-    // Replace 'ME_PLACEHOLDER' with actual user ID
     const fixedExpenses = expenses.map((e) => {
       const splitsArray = e.splits || e.splitDetails || []
       return {
@@ -95,6 +95,17 @@ export function Home() {
     setEditExpense(null)
   }
 
+  const handleSeedScenario = async () => {
+    try {
+      const { seedInitialData } = await import('../lib/seed')
+      toast.loading('Creating Rusiru, Sahan & Kalum scenario...', { id: 'seed' })
+      await seedInitialData(user.uid, user.displayName || 'Rusiru')
+      toast.success('Loaded scenario: Rusiru, Sahan & Kalum!', { id: 'seed' })
+    } catch (err) {
+      toast.error(err.message, { id: 'seed' })
+    }
+  }
+
   return (
     <PageLayout>
       {/* ── Header ── */}
@@ -130,6 +141,16 @@ export function Home() {
           aria-label="Next month"
         >
           <ChevronRight size={20} className="text-gray-500" />
+        </button>
+      </div>
+
+      {/* ── Quick Scenario Seed Banner ── */}
+      <div className="px-4 pt-3 pb-1">
+        <button
+          onClick={handleSeedScenario}
+          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:opacity-95 transition-opacity"
+        >
+          ⚡ Load Real-World Scenario (Rusiru, Sahan & Kalum)
         </button>
       </div>
 
@@ -183,19 +204,10 @@ export function Home() {
             hint={t('empty.expensesHint')}
           />
           <button
-            onClick={async () => {
-              try {
-                const { seedInitialData } = await import('../lib/seed')
-                toast.loading('Seeding sample expenses...', { id: 'seed' })
-                await seedInitialData(user.uid, user.displayName)
-                toast.success('Sample database seeded successfully!', { id: 'seed' })
-              } catch (err) {
-                toast.error(err.message, { id: 'seed' })
-              }
-            }}
+            onClick={handleSeedScenario}
             className="btn-ghost text-blue-600 text-xs font-bold py-2 px-4 rounded-xl border border-blue-200 mt-2 hover:bg-blue-50 transition-colors"
           >
-            🌱 Seed Sample Data (3 Friends & Expenses)
+            🌱 Seed Sample Data (Rusiru, Sahan & Kalum)
           </button>
         </div>
       ) : (
@@ -209,7 +221,7 @@ export function Home() {
             })
 
             return (
-              <section key={dateKey}>
+              <section key={dateKey} className="border-b border-gray-100 pb-2">
                 {/* Sticky date header */}
                 <div className="date-header">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
@@ -219,6 +231,13 @@ export function Home() {
                     {formatCurrency(dayTotal, currency)}
                   </span>
                 </div>
+
+                {/* Daily End-of-Day Summary Card */}
+                <DailySummaryCard
+                  dayExpenses={dayExpenses}
+                  members={members}
+                  currency={currency}
+                />
 
                 {/* Entries */}
                 {dayExpenses.map((exp) => (

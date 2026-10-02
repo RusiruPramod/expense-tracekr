@@ -321,3 +321,161 @@ export function computePercentSplits(totalAmount, percentSplits, payerId) {
 
   return splits
 }
+
+/**
+ * calculateDailySummary
+ *
+ * Computes daily breakdown for all group members for a set of expenses on a specific day.
+ * Returns:
+ * {
+ *   totalAmount: number,
+ *   memberSummaries: Array<{
+ *     memberId: string,
+ *     name: string,
+ *     paid: number,
+ *     owes: number,
+ *     net: number,
+ *     status: 'receive' | 'pay' | 'settled'
+ *   }>
+ * }
+ *
+ * @param {Array} dayExpenses
+ * @param {Array} members
+ * @returns {{ totalAmount: number, memberSummaries: Array }}
+ */
+export function calculateDailySummary(dayExpenses, members = []) {
+  const totalAmount = dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0)
+
+  const memberMap = new Map()
+  members.forEach((m) => {
+    memberMap.set(m.id, {
+      memberId: m.id,
+      name: m.name || 'Unknown',
+      paidMinor: 0,
+      owesMinor: 0,
+    })
+  })
+
+  // Process day expenses
+  for (const exp of dayExpenses) {
+    const paidBy = exp.paidBy
+    if (memberMap.has(paidBy)) {
+      memberMap.get(paidBy).paidMinor += toMinorUnits(exp.amount || 0)
+    }
+
+    const splits = exp.splits || exp.splitDetails || []
+    for (const s of splits) {
+      if (memberMap.has(s.memberId)) {
+        memberMap.get(s.memberId).owesMinor += toMinorUnits(s.amount || 0)
+      }
+    }
+  }
+
+  const memberSummaries = Array.from(memberMap.values()).map((m) => {
+    const paid = fromMinorUnits(m.paidMinor)
+    const owes = fromMinorUnits(m.owesMinor)
+    const net = fromMinorUnits(m.paidMinor - m.owesMinor)
+    let status = 'settled'
+    if (net > 0.009) status = 'receive'
+    else if (net < -0.009) status = 'pay'
+
+    return {
+      memberId: m.memberId,
+      name: m.name,
+      paid,
+      owes,
+      net,
+      status,
+    }
+  })
+
+  return {
+    totalAmount,
+    memberSummaries,
+  }
+}
+
+/**
+ * calculateMonthlySummary
+ *
+ * Computes monthly totals and final net balances for all members in a given month.
+ *
+ * @param {Array} monthExpenses
+ * @param {Array} monthSettlements
+ * @param {Array} members
+ * @returns {{
+ *   totalSpent: number,
+ *   memberSummaries: Array<{
+ *     memberId: string,
+ *     name: string,
+ *     paid: number,
+ *     owes: number,
+ *     finalBalance: number,
+ *     status: 'receive' | 'pay' | 'settled'
+ *   }>,
+ *   simplifiedSettlements: Array<{ from: string, fromName: string, to: string, toName: string, amount: number }>
+ * }}
+ */
+export function calculateMonthlySummary(monthExpenses, monthSettlements = [], members = []) {
+  const totalSpent = monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0)
+
+  const memberMap = new Map()
+  members.forEach((m) => {
+    memberMap.set(m.id, {
+      memberId: m.id,
+      name: m.name || 'Unknown',
+      paidMinor: 0,
+      owesMinor: 0,
+    })
+  })
+
+  // Accumulate expenses
+  for (const exp of monthExpenses) {
+    if (memberMap.has(exp.paidBy)) {
+      memberMap.get(exp.paidBy).paidMinor += toMinorUnits(exp.amount || 0)
+    }
+    const splits = exp.splits || exp.splitDetails || []
+    for (const s of splits) {
+      if (memberMap.has(s.memberId)) {
+        memberMap.get(s.memberId).owesMinor += toMinorUnits(s.amount || 0)
+      }
+    }
+  }
+
+  // Calculate balances flat to derive simplified settlements
+  const rawFlatBalances = calculateBalancesFlat(monthExpenses, monthSettlements)
+  const simplified = simplifyDebts(rawFlatBalances).map((trans) => {
+    const fromMember = members.find((m) => m.id === trans.from)
+    const toMember = members.find((m) => m.id === trans.to)
+    return {
+      ...trans,
+      fromName: fromMember?.name || 'Unknown',
+      toName: toMember?.name || 'Unknown',
+    }
+  })
+
+  const memberSummaries = Array.from(memberMap.values()).map((m) => {
+    const paid = fromMinorUnits(m.paidMinor)
+    const owes = fromMinorUnits(m.owesMinor)
+    const finalBalance = fromMinorUnits(m.paidMinor - m.owesMinor)
+    let status = 'settled'
+    if (finalBalance > 0.009) status = 'receive'
+    else if (finalBalance < -0.009) status = 'pay'
+
+    return {
+      memberId: m.memberId,
+      name: m.name,
+      paid,
+      owes,
+      finalBalance,
+      status,
+    }
+  })
+
+  return {
+    totalSpent,
+    memberSummaries,
+    simplifiedSettlements: simplified,
+  }
+}
+

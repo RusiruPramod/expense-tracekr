@@ -18,6 +18,8 @@ import { useTranslation } from 'react-i18next'
 import { setLanguage } from './lib/i18n'
 import { LogOut, Globe, User, ShieldCheck } from 'lucide-react'
 
+import { ReportsPage } from './pages/Reports'
+
 function ProfilePage() {
   const { user, profile, logout } = useAuth()
   const { t, i18n } = useTranslation()
@@ -62,19 +64,6 @@ function ProfilePage() {
           {t('common.logout') || 'Sign Out'}
         </button>
       </div>
-    </div>
-  )
-}
-
-function ReportsPage() {
-  const { t } = useTranslation()
-  return (
-    <div className="page-wrapper min-h-dvh bg-gray-50 p-6 flex flex-col items-center justify-center text-center pb-24">
-      <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-        <ShieldCheck size={32} />
-      </div>
-      <h2 className="text-xl font-bold text-gray-900 mb-2">Analytics & Reports</h2>
-      <p className="text-sm text-gray-500 max-w-xs">Visual breakdowns and monthly expense analytics are tracked seamlessly as you record transactions.</p>
     </div>
   )
 }
