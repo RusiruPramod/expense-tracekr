@@ -150,7 +150,7 @@ export function Home() {
       <div className="px-3 sm:px-4 md:px-0 pt-3 pb-1">
         <button
           onClick={handleSeedScenario}
-          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm hover:opacity-95 transition-opacity"
+          className="w-full py-2.5 px-3 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
         >
           ⚡ Load Real-World Scenario (Rusiru, Sahan & Kalum)
         </button>

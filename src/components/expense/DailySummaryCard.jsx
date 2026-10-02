@@ -15,34 +15,34 @@ export function DailySummaryCard({ dayExpenses, members, currency = 'LKR' }) {
   const summary = calculateDailySummary(dayExpenses, members)
 
   return (
-    <div className="mx-4 md:mx-0 my-2.5 rounded-2xl bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 text-white p-3.5 shadow-md border border-gray-800">
+    <div className="mx-4 md:mx-0 my-2.5 rounded-2xl bg-slate-50/80 text-slate-900 p-3.5 shadow-2xs border border-slate-200/80">
       <div
         onClick={() => setOpen((prev) => !prev)}
         className="flex items-center justify-between cursor-pointer select-none"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center shadow-xs">
+          <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-2xs">
             <Calculator size={17} />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-gray-100 tracking-wide uppercase">
+            <h4 className="text-xs font-bold text-slate-700 tracking-wide uppercase">
               End of Day Summary
             </h4>
-            <p className="text-xs text-gray-400">
-              Total Spent: <span className="font-bold text-white amount-display">{formatCurrency(summary.totalAmount, currency)}</span>
+            <p className="text-xs text-slate-500">
+              Total Spent: <span className="font-bold text-slate-900 amount-display">{formatCurrency(summary.totalAmount, currency)}</span>
             </p>
           </div>
         </div>
 
-        <button className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-3 py-1.5 rounded-xl transition-colors">
+        <button className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100/80 px-3 py-1.5 rounded-xl border border-blue-100 transition-colors">
           <span>{open ? 'Hide' : 'Daily Breakdown'}</span>
           {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
 
       {open && (
-        <div className="mt-3 pt-3 border-t border-gray-800 space-y-2 text-xs">
-          <div className="grid grid-cols-4 font-bold text-gray-400 pb-1.5 border-b border-gray-800 text-[10px] uppercase tracking-wider">
+        <div className="mt-3 pt-3 border-t border-slate-200/80 space-y-2 text-xs">
+          <div className="grid grid-cols-4 font-bold text-slate-400 pb-1.5 border-b border-slate-200/60 text-[10px] uppercase tracking-wider">
             <span>Person</span>
             <span className="text-right">Paid</span>
             <span className="text-right">Owes</span>
@@ -54,23 +54,23 @@ export function DailySummaryCard({ dayExpenses, members, currency = 'LKR' }) {
             const isPay     = m.status === 'pay'
 
             return (
-              <div key={m.memberId} className="grid grid-cols-4 items-center text-gray-200 py-1.5 border-b border-gray-800/60 last:border-none">
-                <span className="font-semibold text-white truncate pr-1">{m.name}</span>
-                <span className="text-right amount-display text-gray-300 font-medium">
+              <div key={m.memberId} className="grid grid-cols-4 items-center text-slate-700 py-1.5 border-b border-slate-100 last:border-none">
+                <span className="font-semibold text-slate-900 truncate pr-1">{m.name}</span>
+                <span className="text-right amount-display text-slate-600 font-medium">
                   {formatCurrency(m.paid, currency)}
                 </span>
-                <span className="text-right amount-display text-gray-300 font-medium">
+                <span className="text-right amount-display text-slate-600 font-medium">
                   {formatCurrency(m.owes, currency)}
                 </span>
                 <span className="text-right font-bold amount-display">
                   {m.status === 'settled' ? (
-                    <span className="inline-block text-gray-500 text-[11px]">0.00</span>
+                    <span className="inline-block text-slate-400 text-[11px]">0.00</span>
                   ) : isReceive ? (
-                    <span className="inline-block text-emerald-400 font-bold text-[11px]">
+                    <span className="inline-block text-emerald-600 font-bold text-[11px]">
                       + {formatCurrency(m.net, currency)}
                     </span>
                   ) : (
-                    <span className="inline-block text-rose-400 font-bold text-[11px]">
+                    <span className="inline-block text-rose-600 font-bold text-[11px]">
                       - {formatCurrency(Math.abs(m.net), currency)}
                     </span>
                   )}
@@ -79,7 +79,7 @@ export function DailySummaryCard({ dayExpenses, members, currency = 'LKR' }) {
             )
           })}
 
-          <p className="text-[10px] text-gray-400 italic pt-1 text-center font-medium">
+          <p className="text-[10px] text-slate-400 italic pt-1 text-center font-medium">
             * (+) Receives money | (-) Pays money for this day
           </p>
         </div>
