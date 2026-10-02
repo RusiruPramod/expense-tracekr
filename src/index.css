@@ -1,0 +1,412 @@
+/* ============================================================
+   Expense Tracker — Global CSS
+   Tailwind v4 @import syntax + custom CSS variables
+   ============================================================ */
+
+@import "tailwindcss";
+
+/* ── Design tokens ─────────────────────────────────────── */
+@theme {
+  --color-bg:         #ffffff;
+  --color-bg-subtle:  #f9fafb;
+  --color-surface:    #ffffff;
+  --color-border:     #e5e7eb;
+  --color-divider:    #f3f4f6;
+
+  --color-text-primary:   #111827;
+  --color-text-secondary: #6b7280;
+  --color-text-muted:     #9ca3af;
+
+  /* Semantic action colors */
+  --color-primary:        #2563eb;
+  --color-primary-hover:  #1d4ed8;
+  --color-primary-fg:     #ffffff;
+
+  --color-credit:         #16a34a;
+  --color-credit-bg:      #f0fdf4;
+  --color-debit:          #dc2626;
+  --color-debit-bg:       #fef2f2;
+  --color-warning:        #ca8a04;
+  --color-warning-bg:     #fefce8;
+
+  /* Radius */
+  --radius-card:    16px;
+  --radius-btn:     12px;
+  --radius-chip:    999px;
+
+  /* Fonts */
+  --font-sans: 'Inter', 'Noto Sans Sinhala', system-ui, sans-serif;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  --shadow-elevated: 0 4px 16px 0 rgb(0 0 0 / 0.08);
+}
+
+/* ── Base ───────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-subtle);
+  color: var(--color-text-primary);
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  overscroll-behavior-y: contain;
+}
+
+/* Sinhala text adjustments */
+:lang(si), [lang="si"] {
+  font-family: 'Noto Sans Sinhala', 'Inter', sans-serif;
+  line-height: 1.8;
+}
+
+/* ── Tabular numbers for monetary amounts ─────────────── */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Safe area helpers ──────────────────────────────────── */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ── Scrollbars ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+
+/* ── Focus rings ────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Bottom sheet overlay ───────────────────────────────── */
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 0.4);
+  z-index: 40;
+  backdrop-filter: blur(2px);
+}
+
+/* ── Skeleton loader ────────────────────────────────────── */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.skeleton {
+  background: #e5e7eb;
+  border-radius: 8px;
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+/* ── Swipe delete hint ──────────────────────────────────── */
+.swipe-container {
+  position: relative;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+/* ── Amount display ─────────────────────────────────────── */
+.amount-display {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.02em;
+}
+
+/* ── Bottom tab bar ─────────────────────────────────────── */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  background: #ffffff;
+  border-top: 1px solid #f3f4f6;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  z-index: 30;
+}
+
+/* ── Page wrapper ───────────────────────────────────────── */
+.page-wrapper {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: #f9fafb;
+  position: relative;
+}
+
+/* ── Card ───────────────────────────────────────────────── */
+.card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+/* ── Primary button ─────────────────────────────────────── */
+.btn-primary {
+  background: #111827;
+  color: #ffffff;
+  border-radius: var(--radius-btn);
+  padding: 14px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: background 150ms ease, transform 100ms ease;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+.btn-primary:hover  { background: #1f2937; }
+.btn-primary:active { transform: scale(0.98); }
+
+.btn-blue {
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: var(--radius-btn);
+  padding: 14px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  transition: background 150ms ease, transform 100ms ease;
+}
+.btn-blue:hover  { background: #1d4ed8; }
+.btn-blue:active { transform: scale(0.98); }
+
+/* ── Ghost / outline button ─────────────────────────────── */
+.btn-ghost {
+  background: transparent;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-btn);
+  padding: 12px 20px;
+  font-weight: 500;
+  font-size: 15px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.btn-ghost:hover { background: #f9fafb; }
+
+/* ── Input ───────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 13px 16px;
+  font-size: 16px;
+  color: #111827;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  font-family: inherit;
+  min-height: 48px;
+}
+.input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgb(37 99 235 / 0.12);
+  background: #ffffff;
+}
+.input::placeholder { color: #9ca3af; }
+
+/* ── Chip ───────────────────────────────────────────────── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-chip);
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+  min-height: 36px;
+}
+.chip.active {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}
+.chip-blue.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+/* ── Avatar ──────────────────────────────────────────────── */
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #374151;
+  flex-shrink: 0;
+  border: 2px solid #ffffff;
+}
+.avatar-sm { width: 32px; height: 32px; font-size: 12px; }
+.avatar-xs { width: 24px; height: 24px; font-size: 10px; }
+.avatar-lg { width: 52px; height: 52px; font-size: 18px; }
+
+/* ── Divider ─────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: #f3f4f6;
+  margin: 0;
+}
+
+/* ── Toggle ──────────────────────────────────────────────── */
+.toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background: #d1d5db;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 200ms ease;
+  flex-shrink: 0;
+  border: none;
+  padding: 0;
+}
+.toggle.on { background: #2563eb; }
+.toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+  transition: transform 200ms ease;
+}
+.toggle.on::after { transform: translateX(20px); }
+
+/* ── Date header (ledger) ────────────────────────────────── */
+.date-header {
+  position: sticky;
+  top: 0;
+  background: #f9fafb;
+  z-index: 10;
+  padding: 8px 16px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ── Ledger entry ────────────────────────────────────────── */
+.ledger-entry {
+  background: #ffffff;
+  border-bottom: 1px solid #f3f4f6;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 100ms ease;
+  position: relative;
+}
+.ledger-entry:active { background: #f9fafb; }
+
+/* ── Balance badge ───────────────────────────────────────── */
+.badge-credit {
+  color: #16a34a;
+  background: #f0fdf4;
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.badge-debit {
+  color: #dc2626;
+  background: #fef2f2;
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.badge-neutral {
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ── FAB ─────────────────────────────────────────────────── */
+.fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #111827;
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+  margin-top: -28px;
+}
+.fab:active { transform: scale(0.93); box-shadow: 0 2px 8px rgb(0 0 0 / 0.15); }
+
+/* ── Section label ───────────────────────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  padding: 0 16px;
+  margin: 16px 0 6px;
+}
+
+/* ── Dark mode (optional) ────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  /* No dark mode by default — only via explicit toggle */
+}
+
+.dark html {
+  background: #0f172a;
+  color: #f8fafc;
+}
