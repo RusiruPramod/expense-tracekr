@@ -11,13 +11,19 @@ import {
   format,
   startOfMonth,
   endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
   subMonths,
   addMonths,
-  subDays,
-  addDays,
+  subWeeks,
+  addWeeks,
   getYear,
   getMonth,
+  getDate,
   isSameMonth,
+  isSameDay,
+  isToday as isDateToday,
 } from 'date-fns'
 import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, CalendarDays } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -193,116 +199,21 @@ export function Home() {
         }
       />
 
-      {/* ── Month / Year Navigator ── */}
-      <div className="relative px-3 sm:px-4 md:px-0 pt-3 pb-2 bg-white border-b border-gray-100">
-
-
-        {/* Month switcher row */}
-        <div className="flex items-center justify-between">
-          {/* Prev month */}
-          <button
-            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Previous month"
-          >
-            <ChevronLeft size={20} className="text-gray-500" />
-          </button>
-
-          {/* Clickable month-year label */}
-          <button
-            onClick={openPicker}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors group"
-            aria-label="Pick year and month"
-          >
-            <CalendarDays size={15} className="text-gray-400 group-hover:text-blue-500 transition-colors" />
-            <span className="text-sm font-bold text-gray-800">
-              {format(currentMonth, 'MMMM yyyy')}
-            </span>
-            {!isViewingNow && (
-              <span className="ml-1 text-[10px] font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full">
-                ≠ Now
-              </span>
-            )}
-          </button>
-
-          {/* Next month */}
-          <button
-            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Next month"
-          >
-            <ChevronRight size={20} className="text-gray-500" />
-          </button>
-        </div>
-
-        {/* ── Year/Month Picker Dropdown ── */}
-        <AnimatePresence>
-          {showPicker && (
-            <motion.div
-              ref={pickerRef}
-              initial={{ opacity: 0, y: -8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.96 }}
-              transition={{ duration: 0.15 }}
-              className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl p-4"
-              style={{ width: 288 }}
-            >
-              {/* Year row */}
-              <div className="flex items-center justify-between mb-3">
-                <button
-                  onClick={() => setPickerYear((y) => y - 1)}
-                  className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
-                >
-                  <ChevronLeft size={16} className="text-gray-600" />
-                </button>
-                <span className="text-base font-black text-gray-900">{pickerYear}</span>
-                <button
-                  onClick={() => setPickerYear((y) => y + 1)}
-                  className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
-                >
-                  <ChevronRight size={16} className="text-gray-600" />
-                </button>
-              </div>
-
-              {/* Month grid */}
-              <div className="grid grid-cols-3 gap-1.5 mb-3">
-                {MONTHS.map((name, idx) => {
-                  const isSelected =
-                    getYear(currentMonth) === pickerYear &&
-                    getMonth(currentMonth) === idx
-                  const isRealNow =
-                    getYear(new Date()) === pickerYear &&
-                    getMonth(new Date()) === idx
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => applyPicker(idx)}
-                      className={[
-                        'py-2 rounded-xl text-xs font-semibold transition-all',
-                        isSelected
-                          ? 'bg-gray-900 text-white shadow-sm'
-                          : isRealNow
-                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                          : 'text-gray-700 hover:bg-gray-100',
-                      ].join(' ')}
-                    >
-                      {name.slice(0, 3)}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* Go to Today */}
-              <button
-                onClick={goToToday}
-                className="w-full py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-700 transition-colors"
-              >
-                Go to Today — {format(new Date(), 'MMM yyyy')}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* ── Week Strip Calendar ── */}
+      <WeekStrip
+        now={now}
+        currentMonth={currentMonth}
+        setCurrentMonth={setCurrentMonth}
+        expenses={expenses}
+        openPicker={openPicker}
+        isViewingNow={isViewingNow}
+        showPicker={showPicker}
+        pickerRef={pickerRef}
+        pickerYear={pickerYear}
+        setPickerYear={setPickerYear}
+        applyPicker={applyPicker}
+        goToToday={goToToday}
+      />
 
       {/* ── Balance summary cards ── */}
       {loading ? (
@@ -437,6 +348,177 @@ export function Home() {
         </div>
       </BottomSheet>
     </PageLayout>
+  )
+}
+
+/** Week-strip calendar — matches the reference UI */
+function WeekStrip({
+  now, currentMonth, setCurrentMonth, expenses,
+  openPicker, isViewingNow,
+  showPicker, pickerRef, pickerYear, setPickerYear, applyPicker, goToToday,
+}) {
+  const [weekAnchor, setWeekAnchor] = useState(now)
+
+  // Get Sun→Sat for the anchor week
+  const weekStart = startOfWeek(weekAnchor, { weekStartsOn: 0 })
+  const weekEnd   = endOfWeek(weekAnchor,   { weekStartsOn: 0 })
+  const weekDays  = eachDayOfInterval({ start: weekStart, end: weekEnd })
+
+  // Dates that have expenses (for dot indicator)
+  const expenseDates = useMemo(() => {
+    const set = new Set()
+    for (const e of expenses) {
+      const d = e.date?.toDate ? e.date.toDate() : new Date(e.date)
+      set.add(format(d, 'yyyy-MM-dd'))
+    }
+    return set
+  }, [expenses])
+
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  return (
+    <div className="relative bg-white border-b border-gray-100 px-3 sm:px-4 md:px-0 pt-3 pb-2">
+      {/* ── Date header: YYYY/MM/DD Day ── */}
+      <div className="flex items-center justify-center mb-3">
+        <button
+          onClick={openPicker}
+          className="text-sm font-medium text-blue-500 hover:text-blue-600 transition-colors tracking-wide"
+        >
+          {format(now, 'yyyy/MM/dd')} {format(now, 'EEE')}
+        </button>
+      </div>
+
+      {/* ── Week row ── */}
+      <div className="flex items-center justify-between">
+        {/* Prev week arrow */}
+        <button
+          onClick={() => setWeekAnchor((a) => subWeeks(a, 1))}
+          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors shrink-0"
+          aria-label="Previous week"
+        >
+          <ChevronLeft size={16} className="text-gray-400" />
+        </button>
+
+        {/* Day columns */}
+        <div className="flex-1 grid grid-cols-7 gap-0">
+          {weekDays.map((day, i) => {
+            const isToday   = isDateToday(day)
+            const hasExpense = expenseDates.has(format(day, 'yyyy-MM-dd'))
+            const dateNum   = getDate(day)
+
+            return (
+              <div key={i} className="flex flex-col items-center gap-0.5">
+                {/* Day name */}
+                <span className={`text-[10px] font-semibold uppercase tracking-wider ${
+                  isToday ? 'text-blue-500' : 'text-gray-400'
+                }`}>
+                  {DAY_NAMES[i]}
+                </span>
+
+                {/* Date number */}
+                <div className={`
+                  w-9 h-9 rounded-full flex items-center justify-center transition-all
+                  ${isToday
+                    ? 'bg-blue-500 text-white shadow-sm shadow-blue-200'
+                    : 'text-gray-700 hover:bg-gray-50'
+                  }
+                `}>
+                  <span className={`text-sm tabular-nums leading-none ${
+                    isToday ? 'font-bold' : 'font-medium'
+                  }`}>
+                    {dateNum}
+                  </span>
+                </div>
+
+                {/* Expense dot */}
+                <div className={`w-1 h-1 rounded-full transition-all ${
+                  hasExpense
+                    ? isToday ? 'bg-white' : 'bg-blue-400'
+                    : 'bg-transparent'
+                }`} />
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Next week arrow */}
+        <button
+          onClick={() => setWeekAnchor((a) => addWeeks(a, 1))}
+          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors shrink-0"
+          aria-label="Next week"
+        >
+          <ChevronRight size={16} className="text-gray-400" />
+        </button>
+      </div>
+
+      {/* ── Year/Month Picker Dropdown ── */}
+      <AnimatePresence>
+        {showPicker && (
+          <motion.div
+            ref={pickerRef}
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl p-4"
+            style={{ width: 288 }}
+          >
+            {/* Year row */}
+            <div className="flex items-center justify-between mb-3">
+              <button
+                onClick={() => setPickerYear((y) => y - 1)}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+              >
+                <ChevronLeft size={16} className="text-gray-600" />
+              </button>
+              <span className="text-base font-black text-gray-900">{pickerYear}</span>
+              <button
+                onClick={() => setPickerYear((y) => y + 1)}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+              >
+                <ChevronRight size={16} className="text-gray-600" />
+              </button>
+            </div>
+
+            {/* Month grid */}
+            <div className="grid grid-cols-3 gap-1.5 mb-3">
+              {MONTHS.map((name, idx) => {
+                const isSelected =
+                  getYear(currentMonth) === pickerYear &&
+                  getMonth(currentMonth) === idx
+                const isRealNow =
+                  getYear(new Date()) === pickerYear &&
+                  getMonth(new Date()) === idx
+                return (
+                  <button
+                    key={name}
+                    onClick={() => applyPicker(idx)}
+                    className={[
+                      'py-2 rounded-xl text-xs font-semibold transition-all',
+                      isSelected
+                        ? 'bg-gray-900 text-white shadow-sm'
+                        : isRealNow
+                        ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                        : 'text-gray-700 hover:bg-gray-100',
+                    ].join(' ')}
+                  >
+                    {name.slice(0, 3)}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Go to Today */}
+            <button
+              onClick={goToToday}
+              className="w-full py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-700 transition-colors"
+            >
+              Go to Today — {format(new Date(), 'MMM yyyy')}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 
