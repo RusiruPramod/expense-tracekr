@@ -38,6 +38,7 @@ import { SkeletonList, SkeletonSummary } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { CATEGORY_KEYS } from '../components/expense/CategoryIcon'
 import { DailySummaryCard } from '../components/expense/DailySummaryCard'
+import { TodaySettlement } from '../components/expense/TodaySettlement'
 import { getPersonBalance } from '../lib/calculations'
 import { formatCurrency, smartDateLabel, groupByDate } from '../lib/format'
 import { getCurrentLang } from '../lib/i18n'
@@ -240,6 +241,9 @@ export function Home() {
           />
         </div>
       )}
+
+      {/* ── Today's Settlement Summary ── */}
+      {!loading && <TodaySettlement now={now} />}
 
       {/* ── Search bar ── */}
       <div className="px-3 sm:px-4 md:px-0 pb-3">
