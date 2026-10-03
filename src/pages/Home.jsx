@@ -1,14 +1,26 @@
 /**
  * src/pages/Home.jsx
  * Daily ledger — date-wise grouped expense journal with summary cards.
+ * - Seed buttons removed; all data from Firebase Firestore (real-time)
+ * - Year/Month picker with auto real-time midnight sync
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
-import { Search, ChevronLeft, ChevronRight, Filter, SlidersHorizontal } from 'lucide-react'
-import { motion } from 'framer-motion'
-import toast from 'react-hot-toast'
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  addMonths,
+  subDays,
+  addDays,
+  getYear,
+  getMonth,
+  isSameMonth,
+} from 'date-fns'
+import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, CalendarDays } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 import { useAuth } from '../context/AuthContext'
 import { useGroup } from '../context/GroupContext'
@@ -20,29 +32,80 @@ import { SkeletonList, SkeletonSummary } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { CATEGORY_KEYS } from '../components/expense/CategoryIcon'
 import { DailySummaryCard } from '../components/expense/DailySummaryCard'
-import {
-  getPersonBalance,
-  calculateBalancesFlat,
-} from '../lib/calculations'
+import { getPersonBalance } from '../lib/calculations'
 import { formatCurrency, smartDateLabel, groupByDate } from '../lib/format'
 import { getCurrentLang } from '../lib/i18n'
 
+const MONTHS = [
+  'January', 'February', 'March', 'April',
+  'May', 'June', 'July', 'August',
+  'September', 'October', 'November', 'December',
+]
+
 export function Home() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { user } = useAuth()
   const { expenses, settlements, members, activeGroup, loading } = useGroup()
 
   const lang = getCurrentLang()
   const currency = activeGroup?.currency || 'LKR'
 
-  const [editExpense, setEditExpense]  = useState(null)
-  const [sheetOpen,   setSheetOpen]    = useState(false)
-  const [search,      setSearch]       = useState('')
-  const [filterCat,   setFilterCat]    = useState('')
-  const [filterOpen,  setFilterOpen]   = useState(false)
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [editExpense, setEditExpense]   = useState(null)
+  const [sheetOpen,   setSheetOpen]     = useState(false)
+  const [search,      setSearch]        = useState('')
+  const [filterCat,   setFilterCat]     = useState('')
+  const [filterOpen,  setFilterOpen]    = useState(false)
 
-  // ── Balance summary ───────────────────────────────────────
+  // ── Real-time current month — auto-advances at midnight ────────
+  const [currentMonth, setCurrentMonth] = useState(() => new Date())
+  const [showPicker,   setShowPicker]   = useState(false)
+  const [pickerYear,   setPickerYear]   = useState(() => getYear(new Date()))
+  const pickerRef = useRef(null)
+
+  // ── Live real-time clock (updates every minute) ────────────────
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const tick = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(tick)
+  }, [])
+
+  // Auto-advance month at real-time midnight
+  useEffect(() => {
+    function msUntilMidnight() {
+      const now = new Date()
+      const midnight = new Date(now)
+      midnight.setHours(24, 0, 0, 0)
+      return midnight - now
+    }
+    let timer
+    function scheduleNext() {
+      timer = setTimeout(() => {
+        // Only auto-advance if user is viewing the current real month
+        setCurrentMonth((prev) => {
+          const today = new Date()
+          if (isSameMonth(prev, today)) return today
+          return prev
+        })
+        scheduleNext()
+      }, msUntilMidnight())
+    }
+    scheduleNext()
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Close picker on outside click
+  useEffect(() => {
+    if (!showPicker) return
+    function handleClick(e) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) {
+        setShowPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showPicker])
+
+  // ── Balance summary ───────────────────────────────────────────
   const balance = useMemo(() => {
     if (!user?.uid || !expenses.length) return { owed: 0, owes: 0, net: 0 }
     const fixedExpenses = expenses.map((e) => {
@@ -64,7 +127,7 @@ export function Home() {
     return getPersonBalance(user.uid, fixedExpenses, fixedSettlements)
   }, [user?.uid, expenses, settlements])
 
-  // ── Filter by month ───────────────────────────────────────
+  // ── Filter by selected month ──────────────────────────────────
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
 
@@ -75,14 +138,14 @@ export function Home() {
       if (filterCat && e.category !== filterCat) return false
       if (search) {
         const q = search.toLowerCase()
-        if (!e.title.toLowerCase().includes(q)) return false
+        if (!e.title?.toLowerCase().includes(q)) return false
       }
       return true
     })
   }, [expenses, monthStart, monthEnd, filterCat, search])
 
-  // ── Group by date ─────────────────────────────────────────
-  const grouped = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses])
+  // ── Group by date ─────────────────────────────────────────────
+  const grouped     = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses])
   const sortedDates = Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a))
 
   const handleEdit = (expense) => {
@@ -95,18 +158,23 @@ export function Home() {
     setEditExpense(null)
   }
 
-  const handleSeedScenario = async () => {
-    try {
-      const { seedInitialData } = await import('../lib/seed')
-      toast.loading('Creating Rusiru, Sahan & Kalum scenario...', { id: 'seed' })
-      const { groupId } = await seedInitialData(user.uid, user.displayName || 'Rusiru')
-      toast.success('✅ Scenario loaded! Rusiru, Sahan & Kalum', { id: 'seed' })
-      // The onSnapshot listener in GroupContext will automatically pick up the new group
-    } catch (err) {
-      console.error(err)
-      toast.error(err.message || 'Failed to seed data', { id: 'seed' })
-    }
+  // ── Picker helpers ────────────────────────────────────────────
+  const openPicker = () => {
+    setPickerYear(getYear(currentMonth))
+    setShowPicker(true)
   }
+
+  const applyPicker = (monthIndex) => {
+    setCurrentMonth(new Date(pickerYear, monthIndex, 1))
+    setShowPicker(false)
+  }
+
+  const goToToday = () => {
+    setCurrentMonth(new Date())
+    setShowPicker(false)
+  }
+
+  const isViewingNow = isSameMonth(currentMonth, new Date())
 
   return (
     <PageLayout>
@@ -125,35 +193,115 @@ export function Home() {
         }
       />
 
-      {/* ── Month switcher ── */}
-      <div className="flex items-center justify-between px-3 sm:px-4 md:px-0 py-3 bg-white border-b border-gray-100">
-        <button
-          onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-          aria-label="Previous month"
-        >
-          <ChevronLeft size={20} className="text-gray-500" />
-        </button>
-        <span className="text-sm font-semibold text-gray-700">
-          {format(currentMonth, 'MMMM yyyy')}
-        </span>
-        <button
-          onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
-          aria-label="Next month"
-        >
-          <ChevronRight size={20} className="text-gray-500" />
-        </button>
-      </div>
+      {/* ── Month / Year Navigator ── */}
+      <div className="relative px-3 sm:px-4 md:px-0 pt-3 pb-2 bg-white border-b border-gray-100">
 
-      {/* ── Quick Scenario Seed Banner ── */}
-      <div className="px-3 sm:px-4 md:px-0 pt-3 pb-1">
-        <button
-          onClick={handleSeedScenario}
-          className="w-full py-2.5 px-3 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center gap-2 hover:bg-blue-100 transition-colors"
-        >
-          ⚡ Load Real-World Scenario (Rusiru, Sahan & Kalum)
-        </button>
+
+        {/* Month switcher row */}
+        <div className="flex items-center justify-between">
+          {/* Prev month */}
+          <button
+            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Previous month"
+          >
+            <ChevronLeft size={20} className="text-gray-500" />
+          </button>
+
+          {/* Clickable month-year label */}
+          <button
+            onClick={openPicker}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-gray-100 transition-colors group"
+            aria-label="Pick year and month"
+          >
+            <CalendarDays size={15} className="text-gray-400 group-hover:text-blue-500 transition-colors" />
+            <span className="text-sm font-bold text-gray-800">
+              {format(currentMonth, 'MMMM yyyy')}
+            </span>
+            {!isViewingNow && (
+              <span className="ml-1 text-[10px] font-semibold text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-full">
+                ≠ Now
+              </span>
+            )}
+          </button>
+
+          {/* Next month */}
+          <button
+            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Next month"
+          >
+            <ChevronRight size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* ── Year/Month Picker Dropdown ── */}
+        <AnimatePresence>
+          {showPicker && (
+            <motion.div
+              ref={pickerRef}
+              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              transition={{ duration: 0.15 }}
+              className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl p-4"
+              style={{ width: 288 }}
+            >
+              {/* Year row */}
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => setPickerYear((y) => y - 1)}
+                  className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+                >
+                  <ChevronLeft size={16} className="text-gray-600" />
+                </button>
+                <span className="text-base font-black text-gray-900">{pickerYear}</span>
+                <button
+                  onClick={() => setPickerYear((y) => y + 1)}
+                  className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+                >
+                  <ChevronRight size={16} className="text-gray-600" />
+                </button>
+              </div>
+
+              {/* Month grid */}
+              <div className="grid grid-cols-3 gap-1.5 mb-3">
+                {MONTHS.map((name, idx) => {
+                  const isSelected =
+                    getYear(currentMonth) === pickerYear &&
+                    getMonth(currentMonth) === idx
+                  const isRealNow =
+                    getYear(new Date()) === pickerYear &&
+                    getMonth(new Date()) === idx
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => applyPicker(idx)}
+                      className={[
+                        'py-2 rounded-xl text-xs font-semibold transition-all',
+                        isSelected
+                          ? 'bg-gray-900 text-white shadow-sm'
+                          : isRealNow
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                          : 'text-gray-700 hover:bg-gray-100',
+                      ].join(' ')}
+                    >
+                      {name.slice(0, 3)}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Go to Today */}
+              <button
+                onClick={goToToday}
+                className="w-full py-2 rounded-xl bg-gray-900 text-white text-xs font-bold hover:bg-gray-700 transition-colors"
+              >
+                Go to Today — {format(new Date(), 'MMM yyyy')}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Balance summary cards ── */}
@@ -200,18 +348,10 @@ export function Home() {
       {loading ? (
         <SkeletonList count={5} />
       ) : sortedDates.length === 0 ? (
-        <div className="flex flex-col items-center">
-          <EmptyState
-            title={t('empty.expenses')}
-            hint={t('empty.expensesHint')}
-          />
-          <button
-            onClick={handleSeedScenario}
-            className="btn-ghost text-blue-600 text-xs font-bold py-2 px-4 rounded-xl border border-blue-200 mt-2 hover:bg-blue-50 transition-colors"
-          >
-            🌱 Seed Sample Data (Rusiru, Sahan & Kalum)
-          </button>
-        </div>
+        <EmptyState
+          title={t('empty.expenses')}
+          hint={t('empty.expensesHint')}
+        />
       ) : (
         <div className="md:rounded-2xl md:border md:border-gray-100 md:shadow-sm overflow-hidden bg-white">
           {sortedDates.map((dateKey) => {
@@ -224,7 +364,7 @@ export function Home() {
 
             return (
               <section key={dateKey} className="border-b border-gray-100 last:border-b-0 pb-2">
-                {/* Date header — sticky on mobile, normal on desktop */}
+                {/* Date header */}
                 <div className="date-header md:sticky-none">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
                     {label}
@@ -322,5 +462,4 @@ function SummaryCard({ label, amount, type, currency }) {
   )
 }
 
-// Export openAddSheet so BottomNav can call it
 export { Home as default }
