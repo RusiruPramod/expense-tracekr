@@ -52,9 +52,10 @@ export function AuthProvider({ children }) {
   const upsertUserDoc = async (firebaseUser, extra = {}) => {
     const ref = doc(db, 'users', firebaseUser.uid)
     const snap = await getDoc(ref)
+    const fallbackName = firebaseUser.displayName || extra.name || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User')
     const data = {
-      name:      firebaseUser.displayName || extra.name || 'Rusiru',
-      email:     firebaseUser.email || 'guest@expensetracker.local',
+      name:      fallbackName,
+      email:     firebaseUser.email || `${fallbackName.toLowerCase().replace(/\s+/g, '')}@expensetracker.local`,
       photoURL:  firebaseUser.photoURL || null,
       language:  localStorage.getItem('expense_tracker_lang') || 'en',
       updatedAt: serverTimestamp(),
@@ -83,9 +84,10 @@ export function AuthProvider({ children }) {
     return result
   }
 
-  const signInGuest = async () => {
+  const signInGuest = async (customName = 'Guest User') => {
     const result = await signInAnonymously(auth)
-    await upsertUserDoc(result.user, { name: 'Rusiru (Guest)' })
+    await updateProfile(result.user, { displayName: customName })
+    await upsertUserDoc(result.user, { name: customName })
     return result
   }
 

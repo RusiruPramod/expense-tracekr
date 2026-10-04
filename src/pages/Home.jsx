@@ -294,6 +294,7 @@ export function Home() {
                   dayExpenses={dayExpenses}
                   members={members}
                   currency={currency}
+                  currentUserId={user?.uid}
                 />
 
                 {/* Entries */}

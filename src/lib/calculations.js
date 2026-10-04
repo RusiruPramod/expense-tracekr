@@ -343,51 +343,86 @@ export function computePercentSplits(totalAmount, percentSplits, payerId) {
  * @param {Array} members
  * @returns {{ totalAmount: number, memberSummaries: Array }}
  */
-export function calculateDailySummary(dayExpenses, members = []) {
-  const totalAmount = dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0)
+export function calculateDailySummary(dayExpenses, members = [], currentUserId = '') {
+  const totalAmount = (dayExpenses || []).reduce((sum, e) => sum + (e.amount || 0), 0)
 
   const memberMap = new Map()
   members.forEach((m) => {
     memberMap.set(m.id, {
       memberId: m.id,
-      name: m.name || 'Unknown',
+      name: m.name || 'Member',
       paidMinor: 0,
       owesMinor: 0,
     })
   })
 
+  // Fallback for current user if not in members list
+  if (currentUserId && !memberMap.has(currentUserId)) {
+    memberMap.set(currentUserId, {
+      memberId: currentUserId,
+      name: 'You',
+      paidMinor: 0,
+      owesMinor: 0,
+    })
+  }
+
   // Process day expenses
-  for (const exp of dayExpenses) {
-    const paidBy = exp.paidBy
+  for (const exp of (dayExpenses || [])) {
+    let paidBy = exp.paidBy
+    if (paidBy === 'ME_PLACEHOLDER' && currentUserId) paidBy = currentUserId
+
+    if (!memberMap.has(paidBy) && paidBy) {
+      memberMap.set(paidBy, {
+        memberId: paidBy,
+        name: 'Member',
+        paidMinor: 0,
+        owesMinor: 0,
+      })
+    }
+
     if (memberMap.has(paidBy)) {
       memberMap.get(paidBy).paidMinor += toMinorUnits(exp.amount || 0)
     }
 
     const splits = exp.splits || exp.splitDetails || []
     for (const s of splits) {
-      if (memberMap.has(s.memberId)) {
-        memberMap.get(s.memberId).owesMinor += toMinorUnits(s.amount || 0)
+      let mId = s.memberId
+      if (mId === 'ME_PLACEHOLDER' && currentUserId) mId = currentUserId
+
+      if (!memberMap.has(mId) && mId) {
+        memberMap.set(mId, {
+          memberId: mId,
+          name: 'Member',
+          paidMinor: 0,
+          owesMinor: 0,
+        })
+      }
+
+      if (memberMap.has(mId)) {
+        memberMap.get(mId).owesMinor += toMinorUnits(s.amount || 0)
       }
     }
   }
 
-  const memberSummaries = Array.from(memberMap.values()).map((m) => {
-    const paid = fromMinorUnits(m.paidMinor)
-    const owes = fromMinorUnits(m.owesMinor)
-    const net = fromMinorUnits(m.paidMinor - m.owesMinor)
-    let status = 'settled'
-    if (net > 0.009) status = 'receive'
-    else if (net < -0.009) status = 'pay'
+  const memberSummaries = Array.from(memberMap.values())
+    .filter((m) => m.paidMinor > 0 || m.owesMinor > 0)
+    .map((m) => {
+      const paid = fromMinorUnits(m.paidMinor)
+      const owes = fromMinorUnits(m.owesMinor)
+      const net = fromMinorUnits(m.paidMinor - m.owesMinor)
+      let status = 'settled'
+      if (net > 0.009) status = 'receive'
+      else if (net < -0.009) status = 'pay'
 
-    return {
-      memberId: m.memberId,
-      name: m.name,
-      paid,
-      owes,
-      net,
-      status,
-    }
-  })
+      return {
+        memberId: m.memberId,
+        name: m.name,
+        paid,
+        owes,
+        net,
+        status,
+      }
+    })
 
   return {
     totalAmount,
@@ -476,6 +511,180 @@ export function calculateMonthlySummary(monthExpenses, monthSettlements = [], me
     totalSpent,
     memberSummaries,
     simplifiedSettlements: simplified,
+  }
+}
+
+/**
+ * normalizeExpensesAndSettlements
+ * Replaces 'ME_PLACEHOLDER' with currentUserId across expenses and settlements.
+ */
+export function normalizeExpensesAndSettlements(expenses = [], settlements = [], currentUserId = '') {
+  const fixedExpenses = (expenses || []).map((e) => {
+    const splits = e.splits || e.splitDetails || []
+    return {
+      ...e,
+      paidBy: e.paidBy === 'ME_PLACEHOLDER' && currentUserId ? currentUserId : e.paidBy,
+      splits: splits.map((s) => ({
+        ...s,
+        memberId: s.memberId === 'ME_PLACEHOLDER' && currentUserId ? currentUserId : s.memberId,
+      })),
+    }
+  })
+
+  const fixedSettlements = (settlements || []).map((s) => ({
+    ...s,
+    from: s.from === 'ME_PLACEHOLDER' && currentUserId ? currentUserId : s.from,
+    to:   s.to   === 'ME_PLACEHOLDER' && currentUserId ? currentUserId : s.to,
+  }))
+
+  return { expenses: fixedExpenses, settlements: fixedSettlements }
+}
+
+/**
+ * calculateCumulativeMemberSummary
+ *
+ * Calculates cumulative member balances as of targetDate (or all time).
+ * Shows exactly how much each member has spent, their split shares, settlements made,
+ * and their direct pending debt to the current user (owner).
+ *
+ * Unpaid balances from previous days automatically roll forward to today!
+ */
+export function calculateCumulativeMemberSummary(
+  expenses = [],
+  settlements = [],
+  members = [],
+  currentUserId = '',
+  targetDate = new Date()
+) {
+  const endOfDay = new Date(targetDate)
+  endOfDay.setHours(23, 59, 59, 999)
+
+  const filteredExpenses = (expenses || []).filter((e) => {
+    const d = e.date?.toDate ? e.date.toDate() : new Date(e.date)
+    return d <= endOfDay
+  })
+
+  const filteredSettlements = (settlements || []).filter((s) => {
+    const d = s.date?.toDate ? s.date.toDate() : new Date(s.date)
+    return d <= endOfDay
+  })
+
+  const { expenses: normExp, settlements: normSet } = normalizeExpensesAndSettlements(
+    filteredExpenses,
+    filteredSettlements,
+    currentUserId
+  )
+
+  const balancesFlat = calculateBalancesFlat(normExp, normSet)
+  const simplified = simplifyDebts(balancesFlat)
+
+  const memberMap = new Map()
+  members.forEach((m) => {
+    memberMap.set(m.id, {
+      memberId: m.id,
+      name: m.name || 'Member',
+      isUser: m.id === currentUserId,
+      isGuest: !!m.isGuest,
+      totalPaidMinor: 0,
+      totalShareMinor: 0,
+      datesInvolved: new Set(),
+    })
+  })
+
+  let totalGroupSpentMinor = 0
+
+  for (const exp of normExp) {
+    const amtMinor = toMinorUnits(exp.amount || 0)
+    totalGroupSpentMinor += amtMinor
+
+    const dateStr = exp.date?.toDate
+      ? exp.date.toDate().toISOString().split('T')[0]
+      : (typeof exp.date === 'string' ? exp.date.split('T')[0] : '')
+
+    if (memberMap.has(exp.paidBy)) {
+      const entry = memberMap.get(exp.paidBy)
+      entry.totalPaidMinor += amtMinor
+      if (dateStr) entry.datesInvolved.add(dateStr)
+    }
+
+    const splits = exp.splits || []
+    for (const s of splits) {
+      if (memberMap.has(s.memberId)) {
+        const entry = memberMap.get(s.memberId)
+        entry.totalShareMinor += toMinorUnits(s.amount || 0)
+        if (dateStr) entry.datesInvolved.add(dateStr)
+      }
+    }
+  }
+
+  let totalToCollectMinor = 0
+  let totalUserOwesMinor = 0
+
+  const memberSummaries = Array.from(memberMap.values()).map((m) => {
+    const isUser = m.memberId === currentUserId
+
+    let netWithUserMinor = 0
+    for (const b of balancesFlat) {
+      if (b.from === m.memberId && b.to === currentUserId) {
+        netWithUserMinor += toMinorUnits(b.amount)
+      } else if (b.from === currentUserId && b.to === m.memberId) {
+        netWithUserMinor -= toMinorUnits(b.amount)
+      }
+    }
+
+    const overallNetMinor = m.totalPaidMinor - m.totalShareMinor
+
+    const totalPaid = fromMinorUnits(m.totalPaidMinor)
+    const totalShare = fromMinorUnits(m.totalShareMinor)
+    const netWithUser = fromMinorUnits(netWithUserMinor)
+    const overallNet = fromMinorUnits(overallNetMinor)
+
+    let status = 'settled'
+    if (netWithUserMinor > 9) {
+      status = 'owes_user'
+      totalToCollectMinor += netWithUserMinor
+    } else if (netWithUserMinor < -9) {
+      status = 'user_owes'
+      totalUserOwesMinor += -netWithUserMinor
+    }
+
+    return {
+      memberId: m.memberId,
+      name: m.name,
+      isUser,
+      isGuest: m.isGuest,
+      totalPaid,
+      totalShare,
+      netWithUser,
+      overallNet,
+      status,
+      amountDueToUser: netWithUser > 0.009 ? netWithUser : 0,
+      amountOwedByUser: netWithUser < -0.009 ? Math.abs(netWithUser) : 0,
+      activeDaysCount: m.datesInvolved.size,
+    }
+  })
+
+  const namedSettlements = simplified.map((s) => {
+    const fromMem = members.find((m) => m.id === s.from)
+    const toMem = members.find((m) => m.id === s.to)
+    return {
+      ...s,
+      fromName: s.from === currentUserId ? 'You' : fromMem?.name || 'Unknown',
+      toName: s.to === currentUserId ? 'You' : toMem?.name || 'Unknown',
+      isYouPay: s.from === currentUserId,
+      isYouReceive: s.to === currentUserId,
+    }
+  })
+
+  return {
+    asOfDate: targetDate,
+    totalExpensesCount: normExp.length,
+    totalSettlementsCount: normSet.length,
+    totalGroupSpent: fromMinorUnits(totalGroupSpentMinor),
+    totalToCollectFromMembers: fromMinorUnits(totalToCollectMinor),
+    totalUserOwesMembers: fromMinorUnits(totalUserOwesMinor),
+    memberSummaries,
+    simplifiedSettlements: namedSettlements,
   }
 }
 

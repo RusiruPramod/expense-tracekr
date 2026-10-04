@@ -55,7 +55,7 @@ export function DesktopNav({ onAddPress }) {
             to="/"
             end
             className={({ isActive }) =>
-              `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              `flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
                 isActive
                   ? 'bg-blue-50 text-blue-600 shadow-2xs'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -67,9 +67,23 @@ export function DesktopNav({ onAddPress }) {
           </NavLink>
 
           <NavLink
+            to="/summary"
+            className={({ isActive }) =>
+              `flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
+                isActive
+                  ? 'bg-blue-50 text-blue-600 shadow-2xs'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              }`
+            }
+          >
+            <Receipt size={18} />
+            <span>{t('nav.summary') || 'Summary'}</span>
+          </NavLink>
+
+          <NavLink
             to="/people"
             className={({ isActive }) =>
-              `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              `flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
                 isActive
                   ? 'bg-blue-50 text-blue-600 shadow-2xs'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -83,7 +97,7 @@ export function DesktopNav({ onAddPress }) {
           <NavLink
             to="/reports"
             className={({ isActive }) =>
-              `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              `flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
                 isActive
                   ? 'bg-blue-50 text-blue-600 shadow-2xs'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -97,7 +111,7 @@ export function DesktopNav({ onAddPress }) {
           <NavLink
             to="/profile"
             className={({ isActive }) =>
-              `flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              `flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
                 isActive
                   ? 'bg-blue-50 text-blue-600 shadow-2xs'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'

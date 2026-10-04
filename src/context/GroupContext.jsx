@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { useAuth } from './AuthContext'
+import { seedInitialData } from '../lib/seed'
 
 const GroupContext = createContext(null)
 
@@ -33,6 +34,7 @@ export function GroupProvider({ children }) {
   // Use refs to avoid stale closures in async callbacks
   const userRef      = useRef(user)
   const activeIdRef  = useRef(null)
+  const isSeedingRef = useRef(false)
 
   useEffect(() => {
     userRef.current = user
@@ -56,13 +58,13 @@ export function GroupProvider({ children }) {
             name = snap.data().name
             email = snap.data().email || ''
           } else if (currentUser?.uid === uid) {
-            name = currentUser.displayName || 'Rusiru'
+            name = currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User')
             email = currentUser.email || ''
           }
         } catch (e) {
           console.warn('Could not load profile for member', uid, e)
           if (currentUser?.uid === uid) {
-            name = currentUser.displayName || 'Rusiru'
+            name = currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User')
             email = currentUser.email || ''
           }
         }
@@ -75,7 +77,7 @@ export function GroupProvider({ children }) {
         })
       }
 
-      // Guest members (Sahan, Kalum from seed, or any added via Add Friend)
+      // Guest members (added to group)
       for (const guest of group.guestMembers || []) {
         resolved.push({
           id:      guest.id,
@@ -95,6 +97,9 @@ export function GroupProvider({ children }) {
     if (!group?.id) return
     activeIdRef.current = group.id
     setActiveGroup(group)
+    if (user?.uid) {
+      localStorage.setItem(`expense_tracker_group_${user.uid}`, group.id)
+    }
     localStorage.setItem('expense_tracker_group', group.id)
     await resolveMembers(group)
   }
@@ -103,6 +108,10 @@ export function GroupProvider({ children }) {
   useEffect(() => {
     if (!user?.uid) {
       setGroups([])
+      setActiveGroup(null)
+      setMembers([])
+      setExpenses([])
+      setSettlements([])
       setLoading(false)
       return
     }
@@ -118,17 +127,30 @@ export function GroupProvider({ children }) {
       setGroups(gs)
 
       if (gs.length === 0) {
-        setActiveGroup(null)
-        setMembers([])
-        setExpenses([])
-        setSettlements([])
-        setLoading(false)
+        // Auto seed default initial group if user has no groups yet
+        if (!isSeedingRef.current) {
+          isSeedingRef.current = true
+          try {
+            const userName = user.displayName || (user.email ? user.email.split('@')[0] : 'User')
+            await seedInitialData(user.uid, userName)
+          } catch (e) {
+            console.error('Auto seeding failed:', e)
+            setActiveGroup(null)
+            setMembers([])
+            setExpenses([])
+            setSettlements([])
+            setLoading(false)
+          } finally {
+            isSeedingRef.current = false
+          }
+        }
         return
       }
 
-      // Auto-select: prefer saved group ID, else most recent
-      const savedId = localStorage.getItem('expense_tracker_group')
-      const found   = gs.find((g) => g.id === savedId) || gs[0]
+      // Auto-select: prefer saved group ID for this user, else most recent
+      const savedKey = `expense_tracker_group_${user.uid}`
+      const savedId  = localStorage.getItem(savedKey) || localStorage.getItem('expense_tracker_group')
+      const found    = gs.find((g) => g.id === savedId) || gs[0]
 
       if (found) {
         await selectGroup(found)

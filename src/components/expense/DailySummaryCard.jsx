@@ -9,10 +9,10 @@ import { ChevronDown, ChevronUp, Calculator } from 'lucide-react'
 import { formatCurrency } from '../../lib/format'
 import { calculateDailySummary } from '../../lib/calculations'
 
-export function DailySummaryCard({ dayExpenses, members, currency = 'LKR' }) {
+export function DailySummaryCard({ dayExpenses, members, currency = 'LKR', currentUserId = '' }) {
   const [open, setOpen] = useState(false)
 
-  const summary = calculateDailySummary(dayExpenses, members)
+  const summary = calculateDailySummary(dayExpenses, members, currentUserId)
 
   return (
     <div className="mx-4 md:mx-0 my-2.5 rounded-2xl bg-slate-50/80 text-slate-900 p-3.5 shadow-2xs border border-slate-200/80">

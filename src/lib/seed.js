@@ -14,11 +14,11 @@ import {
 import { db } from './firebase'
 import { generateGuestId } from './format'
 
-export async function seedInitialData(userId, userName = 'Rusiru') {
+export async function seedInitialData(userId, userName = 'User') {
   if (!userId) throw new Error('User ID is required to seed data.')
 
-  // 1. Ensure User Profile exists with name 'Rusiru' (or current user name)
-  const displayName = userName && userName !== 'User' ? userName : 'Rusiru'
+  // 1. Ensure User Profile exists with name
+  const displayName = userName && userName !== 'User' ? userName : 'User'
   const userRef = doc(db, 'users', userId)
   await setDoc(userRef, {
     name: displayName,
@@ -26,7 +26,7 @@ export async function seedInitialData(userId, userName = 'Rusiru') {
     createdAt: serverTimestamp(),
   }, { merge: true })
 
-  // 2. Create Friends / Guests: Sahan and Kalum
+  // 2. Create Friends / Guests
   const sahanId = generateGuestId()
   const kalumId = generateGuestId()
 
@@ -36,10 +36,11 @@ export async function seedInitialData(userId, userName = 'Rusiru') {
   ]
 
   const inviteCode = Math.random().toString(36).slice(2, 8).toUpperCase()
+  const groupName  = `${displayName}'s Expense Group`
 
   // 3. Create Group
   const groupRef = await addDoc(collection(db, 'groups'), {
-    name: 'Rusiru, Sahan & Kalum Expenses',
+    name: groupName,
     currency: 'LKR',
     memberIds: [userId],
     guestMembers,

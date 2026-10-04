@@ -19,6 +19,7 @@ import { setLanguage } from './lib/i18n'
 import { LogOut, Globe, User, ShieldCheck } from 'lucide-react'
 
 import { ReportsPage } from './pages/Reports'
+import { FinalizeSummary } from './pages/FinalizeSummary'
 
 function ProfilePage() {
   const { user, profile, logout } = useAuth()
@@ -83,6 +84,8 @@ function MainLayout() {
       <main className="flex-1 w-full overflow-y-auto">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/summary" element={<FinalizeSummary />} />
+          <Route path="/finalize" element={<FinalizeSummary />} />
           <Route path="/people" element={<People />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/profile" element={<ProfilePage />} />

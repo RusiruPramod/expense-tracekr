@@ -4,7 +4,8 @@
     "tagline": "Split smarter with friends"
   },
   "nav": {
-    "home": "Home",
+    "home": "Ledger",
+    "summary": "Summary",
     "people": "People",
     "add": "Add",
     "reports": "Reports",

@@ -4,16 +4,16 @@
  */
 
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, Users, Plus, BarChart2, User } from 'lucide-react'
+import { Home, Receipt, Users, Plus, BarChart2, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { motion } from 'framer-motion'
 
 const tabs = [
   { to: '/',        icon: Home,      key: 'home'    },
-  { to: '/people',  icon: Users,     key: 'people'  },
+  { to: '/summary', icon: Receipt,   key: 'summary' },
   { to: null,       icon: Plus,      key: 'add', isFab: true },
+  { to: '/people',  icon: Users,     key: 'people'  },
   { to: '/reports', icon: BarChart2, key: 'reports' },
-  { to: '/profile', icon: User,      key: 'profile' },
 ]
 
 export function BottomNav({ onAddPress }) {
