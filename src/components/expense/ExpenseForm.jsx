@@ -26,7 +26,7 @@ import { formatCurrency } from '../../lib/format'
 
 const SPLIT_MODES = ['equal', 'manual', 'percent', 'individual']
 
-export function ExpenseForm({ onClose, editExpense = null }) {
+export function ExpenseForm({ onClose, editExpense = null, defaultDate = null }) {
   const { t } = useTranslation()
   const { user } = useAuth()
   const { activeGroup, members } = useGroup()
@@ -40,6 +40,8 @@ export function ExpenseForm({ onClose, editExpense = null }) {
   const [date,      setDate]      = useState(
     editExpense?.date?.toDate
       ? format(editExpense.date.toDate(), 'yyyy-MM-dd')
+      : defaultDate
+      ? format(defaultDate, 'yyyy-MM-dd')
       : format(new Date(), 'yyyy-MM-dd')
   )
   const [note,      setNote]      = useState(editExpense?.note      || '')

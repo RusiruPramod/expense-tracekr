@@ -5,6 +5,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, memo } from 'react'
+import { isSameDay } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import {
   format,
@@ -59,6 +60,17 @@ export function Home() {
   const deferredSearch = useDeferredValue(search)
   const [filterCat,   setFilterCat]     = useState('')
   const [filterOpen,  setFilterOpen]    = useState(false)
+
+  // ── Selected day filter (click a day on calendar) ──────────
+  const [selectedDate, setSelectedDate] = useState(null)
+
+  const handleSelectDate = useCallback((day) => {
+    setSelectedDate((prev) => {
+      // Toggle: tap same day again → deselect
+      if (prev && isSameDay(prev, day)) return null
+      return day
+    })
+  }, [])
 
   // ── Real-time current month — auto-advances at midnight ────────
   const [currentMonth, setCurrentMonth] = useState(() => new Date())
@@ -130,7 +142,7 @@ export function Home() {
     return getPersonBalance(user.uid, fixedExpenses, fixedSettlements)
   }, [user?.uid, expenses, settlements])
 
-  // ── Filter by selected month ──────────────────────────────────
+  // ── Filter by selected month (+ optional day) ─────────────────
   const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth])
   const monthEnd   = useMemo(() => endOfMonth(currentMonth), [currentMonth])
 
@@ -138,12 +150,17 @@ export function Home() {
     const q = deferredSearch.trim().toLowerCase()
     return expenses.filter((e) => {
       const d = e.date?.toDate ? e.date.toDate() : new Date(e.date)
-      if (d < monthStart || d > monthEnd) return false
+      // If a specific day is selected, only show that day
+      if (selectedDate) {
+        if (!isSameDay(d, selectedDate)) return false
+      } else {
+        if (d < monthStart || d > monthEnd) return false
+      }
       if (filterCat && e.category !== filterCat) return false
       if (q && !e.title?.toLowerCase().includes(q)) return false
       return true
     })
-  }, [expenses, monthStart, monthEnd, filterCat, deferredSearch])
+  }, [expenses, monthStart, monthEnd, filterCat, deferredSearch, selectedDate])
 
   // ── Group by date ─────────────────────────────────────────────
   const grouped     = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses])
@@ -208,7 +225,24 @@ export function Home() {
         setPickerYear={setPickerYear}
         applyPicker={applyPicker}
         goToToday={goToToday}
+        selectedDate={selectedDate}
+        onSelectDate={handleSelectDate}
       />
+
+      {/* ── Selected day indicator chip ── */}
+      {selectedDate && (
+        <div className="px-3 sm:px-4 md:px-0 pt-2 pb-1 flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">
+            📅 {format(selectedDate, 'yyyy MMM dd (EEE)')}
+          </span>
+          <button
+            onClick={() => setSelectedDate(null)}
+            className="text-xs text-gray-500 hover:text-gray-700 font-medium underline transition-colors"
+          >
+            {t('home.showAll') || 'Show all'}
+          </button>
+        </div>
+      )}
 
       {/* ── Balance summary cards ── */}
       {loading && expenses.length === 0 ? (
@@ -308,7 +342,7 @@ export function Home() {
         title={editExpense ? t('expense.edit') : t('expense.add')}
         fullHeight
       >
-        <ExpenseForm onClose={handleCloseSheet} editExpense={editExpense} />
+        <ExpenseForm onClose={handleCloseSheet} editExpense={editExpense} defaultDate={selectedDate} />
       </BottomSheet>
 
       {/* ── Filter sheet ── */}
@@ -355,6 +389,7 @@ const WeekStrip = memo(function WeekStrip({
   now, currentMonth, expenses,
   openPicker,
   showPicker, pickerRef, pickerYear, setPickerYear, applyPicker, goToToday,
+  selectedDate, onSelectDate,
 }) {
   const [weekAnchor, setWeekAnchor] = useState(now)
 
@@ -401,15 +436,21 @@ const WeekStrip = memo(function WeekStrip({
         {/* Day columns */}
         <div className="flex-1 grid grid-cols-7 gap-0">
           {weekDays.map((day, i) => {
-            const isToday   = isDateToday(day)
+            const isToday    = isDateToday(day)
+            const isSelected = selectedDate && isSameDay(day, selectedDate)
             const hasExpense = expenseDates.has(format(day, 'yyyy-MM-dd'))
-            const dateNum   = getDate(day)
+            const dateNum    = getDate(day)
 
             return (
-              <div key={i} className="flex flex-col items-center gap-0.5">
+              <button
+                key={i}
+                type="button"
+                onClick={() => onSelectDate(day)}
+                className="flex flex-col items-center gap-0.5 cursor-pointer"
+              >
                 {/* Day name */}
                 <span className={`text-[10px] font-semibold uppercase tracking-wider ${
-                  isToday ? 'text-blue-500' : 'text-gray-400'
+                  isSelected ? 'text-blue-600' : isToday ? 'text-blue-500' : 'text-gray-400'
                 }`}>
                   {DAY_NAMES[i]}
                 </span>
@@ -417,13 +458,17 @@ const WeekStrip = memo(function WeekStrip({
                 {/* Date number */}
                 <div className={`
                   w-9 h-9 rounded-full flex items-center justify-center transition-all
-                  ${isToday
+                  ${isSelected && !isToday
+                    ? 'bg-blue-100 text-blue-700 ring-2 ring-blue-400 ring-offset-1'
+                    : isSelected && isToday
+                    ? 'bg-blue-600 text-white ring-2 ring-blue-300 ring-offset-1 shadow-sm shadow-blue-200'
+                    : isToday
                     ? 'bg-blue-500 text-white shadow-sm shadow-blue-200'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    : 'text-gray-700 hover:bg-gray-100'
                   }
                 `}>
                   <span className={`text-sm tabular-nums leading-none ${
-                    isToday ? 'font-bold' : 'font-medium'
+                    isToday || isSelected ? 'font-bold' : 'font-medium'
                   }`}>
                     {dateNum}
                   </span>
@@ -432,10 +477,10 @@ const WeekStrip = memo(function WeekStrip({
                 {/* Expense dot */}
                 <div className={`w-1 h-1 rounded-full transition-all ${
                   hasExpense
-                    ? isToday ? 'bg-white' : 'bg-blue-400'
+                    ? isSelected ? 'bg-blue-600' : isToday ? 'bg-white' : 'bg-blue-400'
                     : 'bg-transparent'
                 }`} />
-              </div>
+              </button>
             )
           })}
         </div>
