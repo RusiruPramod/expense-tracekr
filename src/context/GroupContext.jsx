@@ -118,12 +118,16 @@ export function GroupProvider({ children }) {
 
     const q = query(
       collection(db, 'groups'),
-      where('memberIds', 'array-contains', user.uid),
-      orderBy('createdAt', 'desc')
+      where('memberIds', 'array-contains', user.uid)
     )
 
     const unsub = onSnapshot(q, async (snap) => {
       const gs = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      gs.sort((a, b) => {
+        const tA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0)
+        const tB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0)
+        return tB - tA
+      })
       setGroups(gs)
 
       if (gs.length === 0) {

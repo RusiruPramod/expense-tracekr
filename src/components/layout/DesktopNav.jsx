@@ -4,7 +4,7 @@
  */
 
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, Users, BarChart2, User, Plus, Globe } from 'lucide-react'
+import { Home, Receipt, Users, BarChart2, User, Plus, Globe } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/AuthContext'
 import { useGroup } from '../../context/GroupContext'
