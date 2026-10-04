@@ -1,18 +1,21 @@
 /**
  * src/components/expense/DailySummaryCard.jsx
  * Daily end-of-day calculation & summary table card.
- * Clean, subtle light card styling.
+ * Clean, subtle light card styling with memoized calculations.
  */
 
-import { useState } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { ChevronDown, ChevronUp, Calculator } from 'lucide-react'
 import { formatCurrency } from '../../lib/format'
 import { calculateDailySummary } from '../../lib/calculations'
 
-export function DailySummaryCard({ dayExpenses, members, currency = 'LKR', currentUserId = '' }) {
+function DailySummaryCardComponent({ dayExpenses, members, currency = 'LKR', currentUserId = '' }) {
   const [open, setOpen] = useState(false)
 
-  const summary = calculateDailySummary(dayExpenses, members, currentUserId)
+  const summary = useMemo(
+    () => calculateDailySummary(dayExpenses, members, currentUserId),
+    [dayExpenses, members, currentUserId]
+  )
 
   return (
     <div className="mx-4 md:mx-0 my-2.5 rounded-2xl bg-slate-50/80 text-slate-900 p-3.5 shadow-2xs border border-slate-200/80">
@@ -87,3 +90,5 @@ export function DailySummaryCard({ dayExpenses, members, currency = 'LKR', curre
     </div>
   )
 }
+
+export const DailySummaryCard = memo(DailySummaryCardComponent)

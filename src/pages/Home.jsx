@@ -1,11 +1,10 @@
 /**
  * src/pages/Home.jsx
  * Daily ledger — date-wise grouped expense journal with summary cards.
- * - Seed buttons removed; all data from Firebase Firestore (real-time)
- * - Year/Month picker with auto real-time midnight sync
+ * Highly optimized for performance with memoized components and deferred search filtering.
  */
 
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   format,
@@ -14,18 +13,15 @@ import {
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
-  subMonths,
-  addMonths,
   subWeeks,
   addWeeks,
   getYear,
   getMonth,
   getDate,
   isSameMonth,
-  isSameDay,
   isToday as isDateToday,
 } from 'date-fns'
-import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, CalendarDays } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import { useAuth } from '../context/AuthContext'
@@ -60,6 +56,7 @@ export function Home() {
   const [editExpense, setEditExpense]   = useState(null)
   const [sheetOpen,   setSheetOpen]     = useState(false)
   const [search,      setSearch]        = useState('')
+  const deferredSearch = useDeferredValue(search)
   const [filterCat,   setFilterCat]     = useState('')
   const [filterOpen,  setFilterOpen]    = useState(false)
 
@@ -79,15 +76,14 @@ export function Home() {
   // Auto-advance month at real-time midnight
   useEffect(() => {
     function msUntilMidnight() {
-      const now = new Date()
-      const midnight = new Date(now)
+      const nowDate = new Date()
+      const midnight = new Date(nowDate)
       midnight.setHours(24, 0, 0, 0)
-      return midnight - now
+      return midnight - nowDate
     }
     let timer
     function scheduleNext() {
       timer = setTimeout(() => {
-        // Only auto-advance if user is viewing the current real month
         setCurrentMonth((prev) => {
           const today = new Date()
           if (isSameMonth(prev, today)) return today
@@ -135,51 +131,49 @@ export function Home() {
   }, [user?.uid, expenses, settlements])
 
   // ── Filter by selected month ──────────────────────────────────
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd   = endOfMonth(currentMonth)
+  const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth])
+  const monthEnd   = useMemo(() => endOfMonth(currentMonth), [currentMonth])
 
   const filteredExpenses = useMemo(() => {
+    const q = deferredSearch.trim().toLowerCase()
     return expenses.filter((e) => {
       const d = e.date?.toDate ? e.date.toDate() : new Date(e.date)
       if (d < monthStart || d > monthEnd) return false
       if (filterCat && e.category !== filterCat) return false
-      if (search) {
-        const q = search.toLowerCase()
-        if (!e.title?.toLowerCase().includes(q)) return false
-      }
+      if (q && !e.title?.toLowerCase().includes(q)) return false
       return true
     })
-  }, [expenses, monthStart, monthEnd, filterCat, search])
+  }, [expenses, monthStart, monthEnd, filterCat, deferredSearch])
 
   // ── Group by date ─────────────────────────────────────────────
   const grouped     = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses])
-  const sortedDates = Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a))
+  const sortedDates = useMemo(() => Array.from(grouped.keys()).sort((a, b) => b.localeCompare(a)), [grouped])
 
-  const handleEdit = (expense) => {
+  const handleEdit = useCallback((expense) => {
     setEditExpense(expense)
     setSheetOpen(true)
-  }
+  }, [])
 
-  const handleCloseSheet = () => {
+  const handleCloseSheet = useCallback(() => {
     setSheetOpen(false)
     setEditExpense(null)
-  }
+  }, [])
 
   // ── Picker helpers ────────────────────────────────────────────
-  const openPicker = () => {
+  const openPicker = useCallback(() => {
     setPickerYear(getYear(currentMonth))
     setShowPicker(true)
-  }
+  }, [currentMonth])
 
-  const applyPicker = (monthIndex) => {
+  const applyPicker = useCallback((monthIndex) => {
     setCurrentMonth(new Date(pickerYear, monthIndex, 1))
     setShowPicker(false)
-  }
+  }, [pickerYear])
 
-  const goToToday = () => {
+  const goToToday = useCallback(() => {
     setCurrentMonth(new Date())
     setShowPicker(false)
-  }
+  }, [])
 
   const isViewingNow = isSameMonth(currentMonth, new Date())
 
@@ -217,7 +211,7 @@ export function Home() {
       />
 
       {/* ── Balance summary cards ── */}
-      {loading ? (
+      {loading && expenses.length === 0 ? (
         <SkeletonSummary />
       ) : (
         <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-5 px-3 sm:px-4 md:px-0 py-3 md:py-4">
@@ -243,7 +237,7 @@ export function Home() {
       )}
 
       {/* ── Today's Settlement Summary ── */}
-      {!loading && <TodaySettlement now={now} />}
+      <TodaySettlement now={now} />
 
       {/* ── Search bar ── */}
       <div className="px-3 sm:px-4 md:px-0 pb-3">
@@ -260,7 +254,7 @@ export function Home() {
       </div>
 
       {/* ── Ledger ── */}
-      {loading ? (
+      {loading && expenses.length === 0 ? (
         <SkeletonList count={5} />
       ) : sortedDates.length === 0 ? (
         <EmptyState
@@ -356,18 +350,18 @@ export function Home() {
   )
 }
 
-/** Week-strip calendar — matches the reference UI */
-function WeekStrip({
-  now, currentMonth, setCurrentMonth, expenses,
-  openPicker, isViewingNow,
+/** Week-strip calendar — memoized */
+const WeekStrip = memo(function WeekStrip({
+  now, currentMonth, expenses,
+  openPicker,
   showPicker, pickerRef, pickerYear, setPickerYear, applyPicker, goToToday,
 }) {
   const [weekAnchor, setWeekAnchor] = useState(now)
 
   // Get Sun→Sat for the anchor week
-  const weekStart = startOfWeek(weekAnchor, { weekStartsOn: 0 })
-  const weekEnd   = endOfWeek(weekAnchor,   { weekStartsOn: 0 })
-  const weekDays  = eachDayOfInterval({ start: weekStart, end: weekEnd })
+  const weekStart = useMemo(() => startOfWeek(weekAnchor, { weekStartsOn: 0 }), [weekAnchor])
+  const weekEnd   = useMemo(() => endOfWeek(weekAnchor,   { weekStartsOn: 0 }), [weekAnchor])
+  const weekDays  = useMemo(() => eachDayOfInterval({ start: weekStart, end: weekEnd }), [weekStart, weekEnd])
 
   // Dates that have expenses (for dot indicator)
   const expenseDates = useMemo(() => {
@@ -525,10 +519,10 @@ function WeekStrip({
       </AnimatePresence>
     </div>
   )
-}
+})
 
-/** Summary card: owed / owes / net */
-function SummaryCard({ label, amount, type, currency }) {
+/** Summary card: owed / owes / net — memoized */
+const SummaryCard = memo(function SummaryCard({ label, amount, type, currency }) {
   const colorClass = {
     credit: 'text-emerald-700',
     debit:  'text-rose-600',
@@ -547,6 +541,6 @@ function SummaryCard({ label, amount, type, currency }) {
       </p>
     </div>
   )
-}
+})
 
 export { Home as default }

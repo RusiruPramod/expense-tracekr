@@ -1,12 +1,13 @@
 /**
  * src/pages/People.jsx
  * Balances list — per-person net amounts with settle-up actions and Add Friend feature.
+ * Optimized with memoized PersonRow and optimistic friend addition.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Users, UserPlus, Plus } from 'lucide-react'
+import { Users, UserPlus } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 import { useAuth } from '../context/AuthContext'
@@ -66,7 +67,6 @@ export function People() {
     return members
       .filter((m) => m.id !== user?.uid)
       .map((m) => {
-        // Find entries that involve both user and this person
         let net = 0
         for (const b of balancesFlat) {
           if (b.from === user?.uid && b.to === m.id)  net -= b.amount
@@ -79,24 +79,34 @@ export function People() {
 
   const handleAddFriend = async (e) => {
     e.preventDefault()
-    if (!newFriendName.trim()) return
+    const name = newFriendName.trim()
+    if (!name) return
     if (!activeGroup?.id) {
       toast.error('No active group')
       return
     }
 
     setAdding(true)
+    setNewFriendName('')
+    setAddSheetOpen(false)
+    toast.success(`Added ${name} to group!`)
+
     try {
-      await addGuestMember(newFriendName.trim(), activeGroup.id)
-      toast.success(`Added ${newFriendName.trim()} to group!`)
-      setNewFriendName('')
-      setAddSheetOpen(false)
+      await addGuestMember(name, activeGroup.id)
     } catch (err) {
       toast.error(err.message || 'Failed to add friend')
     } finally {
       setAdding(false)
     }
   }
+
+  const handleOpenSettle = useCallback((member, net) => {
+    setSettleTarget({
+      person:    member,
+      amount:    Math.abs(net),
+      direction: net < 0 ? 'i_pay' : 'they_pay',
+    })
+  }, [])
 
   if (!activeGroup) {
     return (
@@ -140,7 +150,7 @@ export function People() {
         </button>
       </div>
 
-      {loading ? (
+      {loading && members.length === 0 ? (
         <SkeletonList count={4} />
       ) : personBalances.length === 0 ? (
         <EmptyState
@@ -157,13 +167,7 @@ export function People() {
               net={net}
               currency={currency}
               t={t}
-              onSettle={() =>
-                setSettleTarget({
-                  person:    member,
-                  amount:    Math.abs(net),
-                  direction: net < 0 ? 'i_pay' : 'they_pay',
-                })
-              }
+              onSettle={() => handleOpenSettle(member, net)}
             />
           ))}
         </div>
@@ -217,7 +221,7 @@ export function People() {
   )
 }
 
-function PersonRow({ member, net, currency, t, onSettle }) {
+const PersonRow = memo(function PersonRow({ member, net, currency, t, onSettle }) {
   const isPositive = net > 0
   const isZero     = Math.abs(net) < 0.01
 
@@ -258,4 +262,4 @@ function PersonRow({ member, net, currency, t, onSettle }) {
       </div>
     </div>
   )
-}
+})

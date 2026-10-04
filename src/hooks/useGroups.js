@@ -1,6 +1,6 @@
 /**
  * src/hooks/useGroups.js
- * Group management: create, join, add/remove members.
+ * Group management: create, join, add/remove members with optimistic updates.
  */
 
 import {
@@ -23,7 +23,7 @@ import { generateGuestId } from '../lib/format'
 
 export function useGroups() {
   const { user } = useAuth()
-  const { refreshGroup, selectGroup } = useGroup()
+  const { refreshGroup, selectGroup, optimisticAddGuestMember } = useGroup()
 
   /**
    * Create a new group with the current user as the first member.
@@ -84,15 +84,25 @@ export function useGroups() {
   }
 
   /**
-   * Add a guest member (no account) to the active group.
+   * Add a guest member (no account) to the active group with instant optimistic update.
    */
   const addGuestMember = async (name, groupId) => {
     const guest = { id: generateGuestId(), name: name.trim() }
-    await updateDoc(doc(db, 'groups', groupId), {
-      guestMembers: arrayUnion(guest),
-    })
-    await refreshGroup()
-    return guest
+    
+    // Instant optimistic update
+    optimisticAddGuestMember?.(guest)
+
+    try {
+      await updateDoc(doc(db, 'groups', groupId), {
+        guestMembers: arrayUnion(guest),
+      })
+      // Background sync
+      refreshGroup()
+      return guest
+    } catch (err) {
+      refreshGroup()
+      throw err
+    }
   }
 
   /**
@@ -109,7 +119,6 @@ export function useGroups() {
    * Remove a guest member from the group.
    */
   const removeGuest = async (guest, groupId) => {
-    // Firestore arrayRemove requires deep equality; guests are stored as plain objects
     const ref  = doc(db, 'groups', groupId)
     const snap = await getDoc(ref)
     if (!snap.exists()) return

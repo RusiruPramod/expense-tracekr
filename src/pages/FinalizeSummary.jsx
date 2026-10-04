@@ -6,7 +6,7 @@
  * date-wise breakdown, and WhatsApp payment reminders.
  */
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useDeferredValue } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format, isToday as isDateToday, isSameDay } from 'date-fns'
 import {
@@ -56,6 +56,7 @@ export function FinalizeSummary() {
   const [targetDate, setTargetDate] = useState(() => new Date())
   const [activeTab, setActiveTab] = useState('members') // 'members' | 'datewise' | 'history'
   const [searchQuery, setSearchQuery] = useState('')
+  const deferredSearchQuery = useDeferredValue(searchQuery)
   const [filterType, setFilterType] = useState('all') // 'all' | 'pending' | 'settled'
   const [settleTarget, setSettleTarget] = useState(null) // { person, amount, direction }
 
@@ -92,12 +93,11 @@ export function FinalizeSummary() {
 
   // Filtered members list
   const filteredMemberSummaries = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase()
     return cumulativeData.memberSummaries
       .filter((m) => !m.isUser)
       .filter((m) => {
-        if (searchQuery) {
-          if (!m.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
-        }
+        if (q && !m.name.toLowerCase().includes(q)) return false
         if (filterType === 'pending') {
           return m.status === 'owes_user' || m.status === 'user_owes'
         }
@@ -112,7 +112,7 @@ export function FinalizeSummary() {
         if (b.status === 'owes_user' && a.status !== 'owes_user') return 1
         return b.amountDueToUser - a.amountDueToUser
       })
-  }, [cumulativeData.memberSummaries, searchQuery, filterType])
+  }, [cumulativeData.memberSummaries, deferredSearchQuery, filterType])
 
   // Date-wise grouped ledger calculation
   const dateWiseLedger = useMemo(() => {
@@ -226,7 +226,7 @@ export function FinalizeSummary() {
       </div>
 
       {/* ── Key Financial Metric Cards ── */}
-      {loading ? (
+      {loading && expenses.length === 0 ? (
         <SkeletonSummary />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 px-4 md:px-0 py-3">
@@ -348,7 +348,7 @@ export function FinalizeSummary() {
           </div>
 
           {/* Members List Cards */}
-          {loading ? (
+          {loading && expenses.length === 0 ? (
             <SkeletonList count={4} />
           ) : filteredMemberSummaries.length === 0 ? (
             <EmptyState

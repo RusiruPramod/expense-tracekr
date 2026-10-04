@@ -1,9 +1,9 @@
 /**
  * src/components/expense/ExpenseCard.jsx
- * Single ledger entry card. Supports swipe-to-reveal actions.
+ * Single ledger entry card. Supports swipe-to-reveal actions and memoized rendering.
  */
 
-import { useState, useRef } from 'react'
+import { useState, memo, useCallback } from 'react'
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { Trash2, Pencil, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -14,11 +14,11 @@ import { CategoryIcon } from './CategoryIcon'
 import { useAuth } from '../../context/AuthContext'
 import { useGroup } from '../../context/GroupContext'
 import { useExpenses } from '../../hooks/useExpenses'
-import { formatCurrency, formatTimestamp } from '../../lib/format'
+import { formatCurrency } from '../../lib/format'
 
 const SWIPE_THRESHOLD = 72
 
-export function ExpenseCard({ expense, onEdit }) {
+function ExpenseCardComponent({ expense, onEdit }) {
   const { t } = useTranslation()
   const { user } = useAuth()
   const { members, activeGroup } = useGroup()
@@ -33,15 +33,28 @@ export function ExpenseCard({ expense, onEdit }) {
 
   const currency = activeGroup?.currency || 'LKR'
 
-  const getMemberName = (id) => {
+  const getMemberName = useCallback((id) => {
     const m = members.find((m) => m.id === id)
     return id === user?.uid ? t('common.you') : m?.name || 'Unknown'
-  }
+  }, [members, user?.uid, t])
 
   const splitsList = expense.splits || expense.splitDetails || []
   const splitMembers = splitsList.map((s) => members.find((m) => m.id === s.memberId)).filter(Boolean)
 
   const paidByName = getMemberName(expense.paidBy)
+
+  const handleDelete = async () => {
+    if (deleting) return
+    if (!window.confirm(t('expense.confirmDelete'))) return
+    setDeleting(true)
+    try {
+      toast.success(t('expense.deleted'))
+      await deleteExpense(expense.id)
+    } catch {
+      toast.error(t('toast.error'))
+      setDeleting(false)
+    }
+  }
 
   const handleDragEnd = async (_, info) => {
     const { offset } = info
@@ -59,22 +72,10 @@ export function ExpenseCard({ expense, onEdit }) {
     }
   }
 
-  const handleDelete = async () => {
-    if (!window.confirm(t('expense.confirmDelete'))) return
-    setDeleting(true)
-    try {
-      await deleteExpense(expense.id)
-      toast.success(t('expense.deleted'))
-    } catch {
-      toast.error(t('toast.error'))
-      setDeleting(false)
-    }
-  }
-
   return (
     <div className="relative overflow-hidden">
       {/* Background actions */}
-      <div className="absolute inset-0 flex">
+      <div className="absolute inset-0 flex pointer-events-none">
         {/* Right bg (edit) */}
         <motion.div
           style={{ opacity: editOpacity }}
@@ -183,3 +184,5 @@ export function ExpenseCard({ expense, onEdit }) {
     </div>
   )
 }
+
+export const ExpenseCard = memo(ExpenseCardComponent)

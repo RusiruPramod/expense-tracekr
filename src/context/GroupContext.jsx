@@ -1,10 +1,10 @@
 /**
  * src/context/GroupContext.jsx
  * Manages the currently active group and real-time Firestore subscriptions.
- * Fully integrated with the seed data path (real UIDs + guest IDs).
+ * Fully optimized with in-memory caching, parallel resolution, and optimistic state updates.
  */
 
-import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react'
 import {
   collection,
   doc,
@@ -19,6 +19,9 @@ import { useAuth } from './AuthContext'
 import { seedInitialData } from '../lib/seed'
 
 const GroupContext = createContext(null)
+
+// Global in-memory user profile cache (persists across component mounts)
+const userProfileCache = new Map()
 
 export function GroupProvider({ children }) {
   const { user } = useAuth()
@@ -35,50 +38,89 @@ export function GroupProvider({ children }) {
   const userRef      = useRef(user)
   const activeIdRef  = useRef(null)
   const isSeedingRef = useRef(false)
+  const expensesRef  = useRef(expenses)
+  const settlementsRef = useRef(settlements)
 
   useEffect(() => {
     userRef.current = user
   }, [user])
 
-  // ── Resolve member names ───────────────────────────────────
-  const resolveMembers = async (group) => {
+  useEffect(() => {
+    expensesRef.current = expenses
+  }, [expenses])
+
+  useEffect(() => {
+    settlementsRef.current = settlements
+  }, [settlements])
+
+  // ── Fast Parallel Member Resolution with In-Memory Cache ──
+  const resolveMembers = useCallback(async (group) => {
     if (!group) return
 
     try {
-      const resolved = []
       const currentUser = userRef.current
+      const uids = group.memberIds || []
+      const guests = group.guestMembers || []
 
-      // Registered members: read from users/{uid} in Firestore
-      for (const uid of group.memberIds || []) {
-        let name = 'User'
-        let email = ''
-        try {
-          const snap = await getDoc(doc(db, 'users', uid))
-          if (snap.exists() && snap.data().name) {
-            name = snap.data().name
-            email = snap.data().email || ''
-          } else if (currentUser?.uid === uid) {
-            name = currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User')
-            email = currentUser.email || ''
-          }
-        } catch (e) {
-          console.warn('Could not load profile for member', uid, e)
-          if (currentUser?.uid === uid) {
-            name = currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User')
-            email = currentUser.email || ''
-          }
+      // Populate current user immediately in cache if available
+      if (currentUser?.uid) {
+        const myName = currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User')
+        const myEmail = currentUser.email || ''
+        if (!userProfileCache.has(currentUser.uid)) {
+          userProfileCache.set(currentUser.uid, { name: myName, email: myEmail })
         }
+      }
 
+      // Identify cache misses
+      const missingUids = uids.filter((uid) => !userProfileCache.has(uid))
+
+      // Fetch all missing user profiles in parallel (0 sequential delay)
+      if (missingUids.length > 0) {
+        await Promise.all(
+          missingUids.map(async (uid) => {
+            try {
+              const snap = await getDoc(doc(db, 'users', uid))
+              if (snap.exists() && snap.data().name) {
+                userProfileCache.set(uid, {
+                  name: snap.data().name,
+                  email: snap.data().email || '',
+                })
+              } else if (currentUser?.uid === uid) {
+                userProfileCache.set(uid, {
+                  name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'),
+                  email: currentUser.email || '',
+                })
+              } else {
+                userProfileCache.set(uid, { name: 'Member', email: '' })
+              }
+            } catch (e) {
+              console.warn('Could not load profile for member', uid, e)
+              if (currentUser?.uid === uid) {
+                userProfileCache.set(uid, {
+                  name: currentUser.displayName || (currentUser.email ? currentUser.email.split('@')[0] : 'User'),
+                  email: currentUser.email || '',
+                })
+              } else {
+                userProfileCache.set(uid, { name: 'Member', email: '' })
+              }
+            }
+          })
+        )
+      }
+
+      // Build resolved members list instantly from cache
+      const resolved = []
+      for (const uid of uids) {
+        const cached = userProfileCache.get(uid) || { name: 'Member', email: '' }
         resolved.push({
           id:      uid,
-          name,
-          email,
+          name:    cached.name,
+          email:   cached.email,
           isGuest: false,
         })
       }
 
-      // Guest members (added to group)
-      for (const guest of group.guestMembers || []) {
+      for (const guest of guests) {
         resolved.push({
           id:      guest.id,
           name:    guest.name,
@@ -90,19 +132,26 @@ export function GroupProvider({ children }) {
     } catch (err) {
       console.error('resolveMembers error:', err)
     }
-  }
+  }, [])
 
   // ── Select active group ────────────────────────────────────
-  const selectGroup = async (group) => {
+  const selectGroup = useCallback(async (group) => {
     if (!group?.id) return
+    if (activeIdRef.current === group.id && activeGroup) {
+      // Already active, just resolve members if needed
+      await resolveMembers(group)
+      return
+    }
+
     activeIdRef.current = group.id
     setActiveGroup(group)
+
     if (user?.uid) {
       localStorage.setItem(`expense_tracker_group_${user.uid}`, group.id)
     }
     localStorage.setItem('expense_tracker_group', group.id)
     await resolveMembers(group)
-  }
+  }, [activeGroup, resolveMembers, user?.uid])
 
   // ── Load user's groups (real-time) ─────────────────────────
   useEffect(() => {
@@ -177,14 +226,19 @@ export function GroupProvider({ children }) {
       return
     }
 
-    setLoading(true)
+    // Only show loading if there is no data in memory
+    if (expensesRef.current.length === 0) {
+      setLoading(true)
+    }
+
     const q = query(
       collection(db, 'groups', activeGroup.id, 'expenses'),
       orderBy('date', 'desc')
     )
 
     const unsub = onSnapshot(q, (snap) => {
-      setExpenses(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+      const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      setExpenses(fetched)
       setLoading(false)
     }, (err) => {
       console.warn('Expenses listener error:', err)
@@ -217,7 +271,7 @@ export function GroupProvider({ children }) {
   }, [activeGroup?.id])
 
   // ── Refresh active group (called after mutations) ──────────
-  const refreshGroup = async () => {
+  const refreshGroup = useCallback(async () => {
     if (!activeGroup?.id) return
     try {
       const snap = await getDoc(doc(db, 'groups', activeGroup.id))
@@ -229,7 +283,41 @@ export function GroupProvider({ children }) {
     } catch (err) {
       console.error('refreshGroup error:', err)
     }
-  }
+  }, [activeGroup?.id, resolveMembers])
+
+  // ── Optimistic UI Helpers ──────────────────────────────────
+  const optimisticAddExpense = useCallback((newExpense) => {
+    setExpenses((prev) => [newExpense, ...prev])
+  }, [])
+
+  const optimisticUpdateExpense = useCallback((id, updatedFields) => {
+    setExpenses((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, ...updatedFields } : e))
+    )
+  }, [])
+
+  const optimisticDeleteExpense = useCallback((id) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== id))
+  }, [])
+
+  const optimisticAddSettlement = useCallback((newSettlement) => {
+    setSettlements((prev) => [newSettlement, ...prev])
+  }, [])
+
+  const optimisticDeleteSettlement = useCallback((id) => {
+    setSettlements((prev) => prev.filter((s) => s.id !== id))
+  }, [])
+
+  const optimisticAddGuestMember = useCallback((guest) => {
+    setMembers((prev) => [...prev, { id: guest.id, name: guest.name, isGuest: true }])
+    setActiveGroup((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        guestMembers: [...(prev.guestMembers || []), guest],
+      }
+    })
+  }, [])
 
   const value = {
     groups,
@@ -242,6 +330,13 @@ export function GroupProvider({ children }) {
     selectGroup,
     refreshGroup,
     setActiveGroup,
+    userProfileCache,
+    optimisticAddExpense,
+    optimisticUpdateExpense,
+    optimisticDeleteExpense,
+    optimisticAddSettlement,
+    optimisticDeleteSettlement,
+    optimisticAddGuestMember,
   }
 
   return <GroupContext.Provider value={value}>{children}</GroupContext.Provider>

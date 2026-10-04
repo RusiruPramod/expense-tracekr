@@ -11,7 +11,7 @@
  * 5. Direct shortcut to Full Finalize Summary page
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
@@ -46,7 +46,7 @@ function filterExpensesForDate(expenses, targetDate) {
   })
 }
 
-export function TodaySettlement({ now = new Date() }) {
+function TodaySettlementComponent({ now = new Date() }) {
   const navigate = useNavigate()
   const lang = getCurrentLang()
   const { user } = useAuth()
@@ -350,4 +350,7 @@ export function TodaySettlement({ now = new Date() }) {
   )
 }
 
+export const TodaySettlement = memo(TodaySettlementComponent)
 export default TodaySettlement
+
+

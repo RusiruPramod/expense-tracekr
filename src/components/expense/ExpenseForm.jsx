@@ -143,9 +143,13 @@ export function ExpenseForm({ onClose, editExpense = null }) {
     setSelectedMembers(members.map((m) => m.id))
   }
 
+  const submittingRef = useRef(false)
+
   // ── Submit ────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (submittingRef.current || saving) return
+
     const errs = {}
 
     if (!title.trim())          errs.title   = t('expense.errors.noTitle')
@@ -158,33 +162,38 @@ export function ExpenseForm({ onClose, editExpense = null }) {
     setErrors(errs)
     if (Object.keys(errs).length > 0) return
 
+    submittingRef.current = true
     setSaving(true)
-    try {
-      const payload = {
-        title:     title.trim(),
-        amount:    totalAmount,
-        date,
-        note:      note.trim(),
-        category,
-        paidBy,
-        splitMode,
-        splits:    computedSplits,
-      }
 
-      if (editExpense) {
-        await updateExpense(editExpense.id, payload)
-        toast.success(t('expense.updated'))
-      } else {
-        await addExpense(payload)
-        toast.success(t('expense.saved'))
-      }
+    const payload = {
+      title:     title.trim(),
+      amount:    totalAmount,
+      date,
+      note:      note.trim(),
+      category,
+      paidBy,
+      splitMode,
+      splits:    computedSplits,
+    }
 
-      onClose()
-    } catch (err) {
-      console.error(err)
-      toast.error(t('toast.error'))
-    } finally {
-      setSaving(false)
+    // Immediately close sheet and notify user (optimistic UI)
+    onClose()
+    if (editExpense) {
+      toast.success(t('expense.updated'))
+      updateExpense(editExpense.id, payload).catch((err) => {
+        console.error(err)
+        toast.error(t('toast.error'))
+      }).finally(() => {
+        submittingRef.current = false
+      })
+    } else {
+      toast.success(t('expense.saved'))
+      addExpense(payload).catch((err) => {
+        console.error(err)
+        toast.error(t('toast.error'))
+      }).finally(() => {
+        submittingRef.current = false
+      })
     }
   }
 
