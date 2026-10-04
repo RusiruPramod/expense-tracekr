@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import './lib/i18n'
@@ -6,20 +6,33 @@ import './lib/i18n'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { GroupProvider } from './context/GroupContext'
 
+// Eagerly load critical path (auth + initial screens)
 import { Auth } from './pages/Auth'
-import { Home } from './pages/Home'
-import { People } from './pages/People'
 import { LanguageSelect } from './pages/LanguageSelect'
+
+// Lazy load heavy pages — only downloaded when navigated to
+const Home = lazy(() => import('./pages/Home').then(m => ({ default: m.Home })))
+const People = lazy(() => import('./pages/People').then(m => ({ default: m.People })))
+const ReportsPage = lazy(() => import('./pages/Reports').then(m => ({ default: m.ReportsPage })))
+const FinalizeSummary = lazy(() => import('./pages/FinalizeSummary').then(m => ({ default: m.FinalizeSummary })))
 
 import { BottomNav } from './components/layout/BottomNav'
 import { BottomSheet } from './components/ui/BottomSheet'
 import { ExpenseForm } from './components/expense/ExpenseForm'
 import { useTranslation } from 'react-i18next'
 import { setLanguage } from './lib/i18n'
-import { LogOut, Globe, User, ShieldCheck } from 'lucide-react'
+import { LogOut, Globe } from 'lucide-react'
 
-import { ReportsPage } from './pages/Reports'
-import { FinalizeSummary } from './pages/FinalizeSummary'
+// Lightweight page-level loading fallback
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[60dvh]">
+      <div className="w-8 h-8 rounded-xl bg-gray-900 text-white font-black text-lg flex items-center justify-center animate-pulse">
+        ₹
+      </div>
+    </div>
+  )
+}
 
 function ProfilePage() {
   const { user, profile, logout } = useAuth()
@@ -82,15 +95,17 @@ function MainLayout() {
 
       {/* Page content — grows to fill, scrollable */}
       <main className="flex-1 w-full overflow-y-auto">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/summary" element={<FinalizeSummary />} />
-          <Route path="/finalize" element={<FinalizeSummary />} />
-          <Route path="/people" element={<People />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/summary" element={<FinalizeSummary />} />
+            <Route path="/finalize" element={<FinalizeSummary />} />
+            <Route path="/people" element={<People />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* Mobile Bottom navigation — hidden on md+ */}

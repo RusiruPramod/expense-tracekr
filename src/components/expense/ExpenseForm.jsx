@@ -4,7 +4,7 @@
  * Handles all 4 split modes with live preview.
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
