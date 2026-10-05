@@ -14,7 +14,7 @@ import {
   updateProfile,
   sendPasswordResetEmail,
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, getDoc, onSnapshot, serverTimestamp } from 'firebase/firestore'
 import { auth, db, googleProvider } from '../lib/firebase'
 
 const AuthContext = createContext(null)
@@ -50,12 +50,19 @@ export function AuthProvider({ children }) {
   })
   const [loading, setLoading] = useState(() => !auth.currentUser)
 
-  // Subscribe to Firebase auth state — unblocks UI immediately without waiting for Firestore
+  // Subscribe to Firebase auth state and real-time Firestore profile
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+    let profileUnsub = null
+
+    const authUnsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser)
+      if (profileUnsub) {
+        profileUnsub()
+        profileUnsub = null
+      }
+
       if (firebaseUser) {
-        // Fast optimistic profile from local cache or auth claims
+        // Fast optimistic profile from local cache
         const cached = getCachedProfile(firebaseUser.uid)
         const fallbackName = firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'User')
         const optimistic = cached || {
@@ -65,29 +72,31 @@ export function AuthProvider({ children }) {
           photoURL: firebaseUser.photoURL || null,
         }
         setProfile(optimistic)
-        // Background sync Firestore doc (non-blocking)
-        fetchProfile(firebaseUser.uid)
+
+        // Real-time Firestore profile listener with auto-creation
+        profileUnsub = onSnapshot(doc(db, 'users', firebaseUser.uid), async (snap) => {
+          if (snap.exists()) {
+            const data = { id: snap.id, ...snap.data() }
+            setProfile(data)
+            setCachedProfile(firebaseUser.uid, data)
+          } else {
+            // Document does not exist yet (e.g. fresh user or cleaned DB) — auto-create
+            await upsertUserDoc(firebaseUser)
+          }
+        }, (err) => {
+          console.warn('Real-time profile listener warning:', err)
+        })
       } else {
         setProfile(null)
       }
       setLoading(false)
     })
-    return unsub
-  }, [])
 
-  const fetchProfile = async (uid) => {
-    try {
-      const ref  = doc(db, 'users', uid)
-      const snap = await getDoc(ref)
-      if (snap.exists()) {
-        const data = { id: snap.id, ...snap.data() }
-        setProfile(data)
-        setCachedProfile(uid, data)
-      }
-    } catch (err) {
-      console.warn('fetchProfile non-blocking error:', err)
+    return () => {
+      authUnsub()
+      if (profileUnsub) profileUnsub()
     }
-  }
+  }, [])
 
   /** Create or update user Firestore doc */
   const upsertUserDoc = async (firebaseUser, extra = {}) => {
@@ -107,10 +116,7 @@ export function AuthProvider({ children }) {
   }
 
   const signIn = async (email, password) => {
-    const result = await signInWithEmailAndPassword(auth, email, password)
-    // Non-blocking profile fetch in background
-    fetchProfile(result.user.uid)
-    return result
+    return signInWithEmailAndPassword(auth, email, password)
   }
 
   const signUp = async (email, password, name) => {
@@ -142,7 +148,6 @@ export function AuthProvider({ children }) {
     const ref = doc(db, 'users', user.uid)
     await setDoc(ref, { ...data, updatedAt: serverTimestamp() }, { merge: true })
     if (data.name) await updateProfile(user, { displayName: data.name })
-    await fetchProfile(user.uid)
   }
 
   const value = {
@@ -156,7 +161,6 @@ export function AuthProvider({ children }) {
     logout,
     resetPassword,
     updateUserProfile,
-    fetchProfile,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

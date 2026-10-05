@@ -11,6 +11,7 @@ import { ChevronDown } from 'lucide-react'
 
 import { BottomSheet } from '../ui/BottomSheet'
 import { Avatar } from '../ui/Avatar'
+import { useAuth } from '../../context/AuthContext'
 import { useExpenses } from '../../hooks/useExpenses'
 import { useGroup } from '../../context/GroupContext'
 import { formatCurrency } from '../../lib/format'
@@ -27,6 +28,7 @@ const METHODS = ['cash', 'bank', 'other']
  */
 export function SettleSheet({ open, onClose, person, amount, direction }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const { activeGroup } = useGroup()
   const { addSettlement } = useExpenses()
 
@@ -44,11 +46,17 @@ export function SettleSheet({ open, onClose, person, amount, direction }) {
     const val = parseFloat(settleAmount)
     if (!val || val <= 0) { toast.error(t('expense.errors.invalidAmount')); return }
 
+    const myId = user?.uid
+    if (!myId) {
+      toast.error('Not authenticated')
+      return
+    }
+
     setSaving(true)
     try {
       // from = who pays, to = who receives
-      const fromId = direction === 'i_pay' ? 'ME_PLACEHOLDER' : person.id
-      const toId   = direction === 'i_pay' ? person.id        : 'ME_PLACEHOLDER'
+      const fromId = direction === 'i_pay' ? myId : person.id
+      const toId   = direction === 'i_pay' ? person.id : myId
 
       await addSettlement({
         from:   fromId,

@@ -207,7 +207,6 @@ export function useExpenses() {
         createdBy: user.uid,
         createdAt: serverTimestamp(),
       })
-      optimisticUpdateExpense?.(tempId, { id: docRef.id })
       return docRef.id
     } catch (err) {
       optimisticDeleteSettlement?.(tempId)

@@ -171,14 +171,20 @@ export function GroupProvider({ children }) {
   // ── Select active group ────────────────────────────────────
   const selectGroup = useCallback(async (group) => {
     if (!group?.id) return
-    if (activeIdRef.current === group.id && activeGroup) {
-      // Already active, just resolve members if needed
-      await resolveMembers(group)
-      return
-    }
-
     activeIdRef.current = group.id
     setActiveGroup(group)
+
+    // Load cached expenses immediately for 0ms latency transition
+    try {
+      const cachedExp = localStorage.getItem(`splitly_cached_expenses_${group.id}`)
+      if (cachedExp) {
+        const parsed = JSON.parse(cachedExp)
+        if (Array.isArray(parsed)) {
+          setExpenses(parsed)
+          setLoading(false)
+        }
+      }
+    } catch { /* ignore */ }
 
     if (user?.uid) {
       try {
@@ -188,7 +194,7 @@ export function GroupProvider({ children }) {
     }
     localStorage.setItem('expense_tracker_group', group.id)
     await resolveMembers(group)
-  }, [activeGroup, resolveMembers, user?.uid])
+  }, [resolveMembers, user?.uid])
 
   // ── Load user's groups (real-time) ─────────────────────────
   useEffect(() => {
@@ -237,13 +243,21 @@ export function GroupProvider({ children }) {
         return
       }
 
-      // Auto-select: prefer saved group ID for this user, else most recent
+      // Auto-select: prioritize currently active group to receive real-time updates,
+      // or saved group ID for this user, or most recent group
       const savedKey = `expense_tracker_group_${user.uid}`
       const savedId  = localStorage.getItem(savedKey) || localStorage.getItem('expense_tracker_group')
-      const found    = gs.find((g) => g.id === savedId) || gs[0]
+      const targetId = activeIdRef.current || savedId
+      const found    = gs.find((g) => g.id === targetId) || gs[0]
 
       if (found) {
-        await selectGroup(found)
+        activeIdRef.current = found.id
+        setActiveGroup(found)
+        try {
+          localStorage.setItem(`splitly_cached_group_${user.uid}`, JSON.stringify(found))
+          localStorage.setItem(savedKey, found.id)
+        } catch { /* ignore */ }
+        await resolveMembers(found)
       }
     }, (err) => {
       console.warn('Groups listener error:', err)
@@ -255,7 +269,7 @@ export function GroupProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid])
 
-  // ── Subscribe to expenses ──────────────────────────────────
+  // ── Subscribe to expenses (real-time) ──────────────────────
   useEffect(() => {
     if (!activeGroup?.id) {
       setExpenses([])
@@ -263,7 +277,19 @@ export function GroupProvider({ children }) {
       return
     }
 
-    // Only show loading if there is no data in memory
+    // Try loading cached expenses immediately to eliminate loading delay
+    try {
+      const cached = localStorage.getItem(`splitly_cached_expenses_${activeGroup.id}`)
+      if (cached) {
+        const parsed = JSON.parse(cached)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setExpenses(parsed)
+          setLoading(false)
+        }
+      }
+    } catch { /* ignore */ }
+
+    // Only show loading if there is truly no data in memory
     if (expensesRef.current.length === 0) {
       setLoading(true)
     }
@@ -276,6 +302,9 @@ export function GroupProvider({ children }) {
     const unsub = onSnapshot(q, (snap) => {
       const fetched = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
       setExpenses(fetched)
+      try {
+        localStorage.setItem(`splitly_cached_expenses_${activeGroup.id}`, JSON.stringify(fetched))
+      } catch { /* ignore */ }
       setLoading(false)
     }, (err) => {
       console.warn('Expenses listener error:', err)
