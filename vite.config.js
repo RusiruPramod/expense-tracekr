@@ -61,8 +61,8 @@ export default defineConfig({
   build: {
     // Target modern browsers — smaller output
     target: 'es2020',
-    // Increase chunk warning threshold (Firebase is legitimately large)
-    chunkSizeWarningLimit: 600,
+    // Increase chunk warning threshold (Firebase is legitimately large ~615kB)
+    chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
         // Manual chunk splitting — functional format required by Vite 8 / Rolldown
