@@ -34,23 +34,54 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
 
   const currency = activeGroup?.currency || 'LKR'
 
+  // Guaranteed fallback member list so form never renders empty or crashes on fresh/loading accounts
+  const effectiveMembers = useMemo(() => {
+    if (Array.isArray(members) && members.length > 0) return members
+    return [
+      {
+        id: user?.uid || 'user',
+        name: user?.displayName || (user?.email ? user.email.split('@')[0] : 'You'),
+        isGuest: false,
+      },
+    ]
+  }, [members, user])
+
   // ── Form state ────────────────────────────────────────────
   const [title,     setTitle]     = useState(editExpense?.title     || '')
   const [amount,    setAmount]    = useState(editExpense?.amount?.toString() || '')
-  const [date,      setDate]      = useState(
-    editExpense?.date?.toDate
-      ? format(editExpense.date.toDate(), 'yyyy-MM-dd')
-      : defaultDate
-      ? format(defaultDate, 'yyyy-MM-dd')
-      : format(new Date(), 'yyyy-MM-dd')
-  )
+  const [date,      setDate]      = useState(() => {
+    try {
+      if (editExpense?.date?.toDate && typeof editExpense.date.toDate === 'function') {
+        const d = editExpense.date.toDate()
+        if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd')
+      }
+      if (editExpense?.date) {
+        const d = new Date(editExpense.date)
+        if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd')
+      }
+      if (defaultDate) {
+        const d = defaultDate instanceof Date ? defaultDate : new Date(defaultDate)
+        if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd')
+      }
+      return format(new Date(), 'yyyy-MM-dd')
+    } catch {
+      return format(new Date(), 'yyyy-MM-dd')
+    }
+  })
   const [note,      setNote]      = useState(editExpense?.note      || '')
   const [category,  setCategory]  = useState(editExpense?.category  || 'other')
-  const [paidBy,    setPaidBy]    = useState(editExpense?.paidBy    || user?.uid || '')
+  const [paidBy,    setPaidBy]    = useState(() => {
+    if (editExpense?.paidBy) return editExpense.paidBy
+    if (user?.uid && effectiveMembers.some((m) => m.id === user.uid)) return user.uid
+    return effectiveMembers[0]?.id || user?.uid || ''
+  })
   const [splitMode, setSplitMode] = useState(editExpense?.splitMode || 'equal')
-  const [selectedMembers, setSelectedMembers] = useState(
-    editExpense?.splits?.map((s) => s.memberId) || (members.length > 0 ? members.map((m) => m.id) : [])
-  )
+  const [selectedMembers, setSelectedMembers] = useState(() => {
+    if (editExpense?.splits && editExpense.splits.length > 0) {
+      return editExpense.splits.map((s) => s.memberId)
+    }
+    return effectiveMembers.map((m) => m.id)
+  })
   // Manual split amounts: { memberId: string_amount }
   const [manualAmounts, setManualAmounts] = useState(() => {
     if (editExpense?.splitMode === 'manual') {
@@ -77,15 +108,17 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
 
-  // Ensure default paidBy and selectedMembers are properly set when members load
+  // Ensure default paidBy and selectedMembers stay synchronized with members
   useEffect(() => {
-    if (!paidBy && members.length > 0) {
-      setPaidBy(user?.uid && members.some((m) => m.id === user.uid) ? user.uid : members[0].id)
+    if (effectiveMembers.length > 0) {
+      if (!paidBy || !effectiveMembers.some((m) => m.id === paidBy)) {
+        setPaidBy(user?.uid && effectiveMembers.some((m) => m.id === user.uid) ? user.uid : effectiveMembers[0].id)
+      }
+      if (!editExpense && selectedMembers.length === 0) {
+        setSelectedMembers(effectiveMembers.map((m) => m.id))
+      }
     }
-    if (!editExpense && selectedMembers.length === 0 && members.length > 0) {
-      setSelectedMembers(members.map((m) => m.id))
-    }
-  }, [members, paidBy, user?.uid, editExpense, selectedMembers.length])
+  }, [effectiveMembers, paidBy, user?.uid, editExpense, selectedMembers.length])
 
   const totalAmount = parseFloat(amount) || 0
 
@@ -142,10 +175,21 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
   }
 
   const selectAll = () => {
-    setSelectedMembers(members.map((m) => m.id))
+    setSelectedMembers(effectiveMembers.map((m) => m.id))
   }
 
   const submittingRef = useRef(false)
+
+  // Guard against missing activeGroup (e.g. before initial sync completes on mobile)
+  if (!activeGroup) {
+    return (
+      <div className="p-8 text-center flex flex-col items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mb-3" />
+        <p className="text-sm font-semibold text-gray-700">{t('common.loading') || 'Loading...'}</p>
+        <p className="text-xs text-gray-400 mt-1">Connecting to ledger...</p>
+      </div>
+    )
+  }
 
   // ── Submit ────────────────────────────────────────────────
   const handleSubmit = async (e) => {
@@ -268,9 +312,9 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
               onChange={(e) => setPaidBy(e.target.value)}
               className="input appearance-none pr-8"
             >
-              {members.map((m) => (
+              {effectiveMembers.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.id === user?.uid ? t('common.you') : m.name}
+                  {m.id === user?.uid ? t('common.you') : (m.name || 'Member')}
                 </option>
               ))}
             </select>
@@ -309,7 +353,7 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
         </div>
 
         <div className="flex gap-2 flex-wrap">
-          {members.map((m) => {
+          {effectiveMembers.map((m) => {
             const sel = selectedMembers.includes(m.id)
             return (
               <button
@@ -319,8 +363,8 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
                 className={`flex items-center gap-1.5 chip ${sel ? 'active' : ''}`}
                 aria-pressed={sel}
               >
-                <Avatar name={m.name} size="xs" />
-                <span>{m.id === user?.uid ? t('common.you') : m.name}</span>
+                <Avatar name={m.name || 'Member'} size="xs" />
+                <span>{m.id === user?.uid ? t('common.you') : (m.name || 'Member')}</span>
                 {sel && <Check size={12} />}
               </button>
             )
@@ -371,12 +415,12 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
           {splitMode === 'manual' && (
             <div className="space-y-2">
               {selectedMembers.map((id) => {
-                const m = members.find((x) => x.id === id)
+                const m = effectiveMembers.find((x) => x.id === id)
                 return (
                   <div key={id} className="flex items-center gap-3">
-                    <Avatar name={m?.name || id} size="xs" />
+                    <Avatar name={m?.name || id || 'Member'} size="xs" />
                     <span className="text-sm flex-1 text-gray-700">
-                      {id === user?.uid ? t('common.you') : m?.name}
+                      {id === user?.uid ? t('common.you') : (m?.name || id)}
                     </span>
                     <div className="relative w-28">
                       <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rs</span>
@@ -407,12 +451,12 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
           {splitMode === 'percent' && (
             <div className="space-y-2">
               {selectedMembers.map((id) => {
-                const m = members.find((x) => x.id === id)
+                const m = effectiveMembers.find((x) => x.id === id)
                 return (
                   <div key={id} className="flex items-center gap-3">
-                    <Avatar name={m?.name || id} size="xs" />
+                    <Avatar name={m?.name || id || 'Member'} size="xs" />
                     <span className="text-sm flex-1 text-gray-700">
-                      {id === user?.uid ? t('common.you') : m?.name}
+                      {id === user?.uid ? t('common.you') : (m?.name || id)}
                     </span>
                     <div className="relative w-20">
                       <input
@@ -448,14 +492,14 @@ export function ExpenseForm({ onClose, editExpense = null, defaultDate = null })
             <div className="space-y-1.5">
               <p className="text-xs text-gray-400">Assign full amount to:</p>
               <div className="flex flex-wrap gap-2">
-                {members.map((m) => (
+                {effectiveMembers.map((m) => (
                   <button
                     key={m.id}
                     type="button"
                     onClick={() => setIndividualTarget(m.id)}
                     className={`chip ${individualTarget === m.id ? 'active' : ''}`}
                   >
-                    {m.id === user?.uid ? t('common.you') : m.name}
+                    {m.id === user?.uid ? t('common.you') : (m.name || 'Member')}
                     {individualTarget === m.id && <Check size={12} />}
                   </button>
                 ))}

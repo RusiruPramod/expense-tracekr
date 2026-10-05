@@ -19,6 +19,7 @@ const FinalizeSummary = lazy(() => import('./pages/FinalizeSummary').then(m => (
 import { BottomNav } from './components/layout/BottomNav'
 import { BottomSheet } from './components/ui/BottomSheet'
 import { ExpenseForm } from './components/expense/ExpenseForm'
+import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { useTranslation } from 'react-i18next'
 import { setLanguage } from './lib/i18n'
 import { LogOut, Globe } from 'lucide-react'
@@ -115,7 +116,7 @@ function MainLayout() {
       <BottomSheet
         open={showAddForm}
         onClose={() => setShowAddForm(false)}
-        title={t('expense.addTitle') || 'Add Expense'}
+        title={t('expense.add') || 'Add Expense'}
         fullHeight
       >
         <ExpenseForm onClose={() => setShowAddForm(false)} />
@@ -149,19 +150,23 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <MainLayout />
+      <ErrorBoundary>
+        <MainLayout />
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <GroupProvider>
-        <AppContent />
-        <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
-      </GroupProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <GroupProvider>
+          <AppContent />
+          <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
+        </GroupProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   )
 }
 

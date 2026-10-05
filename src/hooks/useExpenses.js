@@ -33,11 +33,15 @@ export function useExpenses() {
     optimisticDeleteSettlement,
   } = useGroup()
 
-  const expensesRef = () =>
-    collection(db, 'groups', activeGroup.id, 'expenses')
+  const expensesRef = () => {
+    if (!activeGroup?.id) throw new Error('No active group selected')
+    return collection(db, 'groups', activeGroup.id, 'expenses')
+  }
 
-  const settlementsRef = () =>
-    collection(db, 'groups', activeGroup.id, 'settlements')
+  const settlementsRef = () => {
+    if (!activeGroup?.id) throw new Error('No active group selected')
+    return collection(db, 'groups', activeGroup.id, 'settlements')
+  }
 
   /**
    * Add a new expense with instant optimistic UI update.

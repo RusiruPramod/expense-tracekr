@@ -7,6 +7,7 @@
 import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X } from 'lucide-react'
+import { ErrorBoundary } from './ErrorBoundary'
 
 const overlayVariants = {
   hidden:  { opacity: 0 },
@@ -42,7 +43,13 @@ export function BottomSheet({
   // Trap focus when open
   useEffect(() => {
     if (open) {
-      const timer = setTimeout(() => sheetRef.current?.focus(), 50)
+      const timer = setTimeout(() => {
+        try {
+          sheetRef.current?.focus?.()
+        } catch {
+          // ignore focus failures on mobile viewports
+        }
+      }, 50)
       return () => clearTimeout(timer)
     }
   }, [open])
@@ -122,7 +129,9 @@ export function BottomSheet({
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto overscroll-contain">
-              {children}
+              <ErrorBoundary onReset={onClose}>
+                {children}
+              </ErrorBoundary>
             </div>
           </motion.div>
         </>

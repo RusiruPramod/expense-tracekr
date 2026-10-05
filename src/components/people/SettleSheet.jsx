@@ -32,7 +32,9 @@ export function SettleSheet({ open, onClose, person, amount, direction }) {
 
   const currency = activeGroup?.currency || 'LKR'
 
-  const [settleAmount, setSettleAmount] = useState(amount?.toFixed(2) || '')
+  const [settleAmount, setSettleAmount] = useState(
+    amount != null && !isNaN(Number(amount)) ? Number(amount).toFixed(2) : ''
+  )
   const [method,       setMethod]       = useState('cash')
   const [date,         setDate]         = useState(format(new Date(), 'yyyy-MM-dd'))
   const [note,         setNote]         = useState('')
@@ -69,8 +71,8 @@ export function SettleSheet({ open, onClose, person, amount, direction }) {
   // Generate WhatsApp request text
   const handleRequest = () => {
     const text = t('settle.requestText', {
-      name:   person?.name,
-      amount: formatCurrency(amount, currency),
+      name:   person?.name || 'Member',
+      amount: formatCurrency(amount || 0, currency),
       count:  '',
     })
     const url  = `https://wa.me/?text=${encodeURIComponent(text)}`
@@ -83,13 +85,13 @@ export function SettleSheet({ open, onClose, person, amount, direction }) {
 
         {/* Person summary */}
         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl">
-          <Avatar name={person?.name} size="md" />
+          <Avatar name={person?.name || 'Member'} size="md" />
           <div>
-            <p className="text-sm font-semibold text-gray-900">{person?.name}</p>
+            <p className="text-sm font-semibold text-gray-900">{person?.name || 'Member'}</p>
             <p className="text-xs text-gray-400">
               {direction === 'i_pay'
-                ? `${t('people.youOwe')} ${formatCurrency(amount, currency)}`
-                : `${t('people.owesYou')} ${formatCurrency(amount, currency)}`}
+                ? `${t('people.youOwe')} ${formatCurrency(amount || 0, currency)}`
+                : `${t('people.owesYou')} ${formatCurrency(amount || 0, currency)}`}
             </p>
           </div>
         </div>

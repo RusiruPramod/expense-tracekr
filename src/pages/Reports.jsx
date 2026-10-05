@@ -24,7 +24,7 @@ import { Avatar } from '../components/ui/Avatar'
 import { SkeletonList } from '../components/ui/Skeleton'
 import { EmptyState } from '../components/ui/EmptyState'
 import { calculateMonthlySummary } from '../lib/calculations'
-import { formatCurrency } from '../lib/format'
+import { formatCurrency, safeDate } from '../lib/format'
 
 export function ReportsPage() {
   const { t } = useTranslation()
@@ -40,16 +40,24 @@ export function ReportsPage() {
   const monthEnd   = endOfMonth(currentMonth)
 
   const monthExpenses = useMemo(() => {
-    return expenses.filter((e) => {
-      const d = e.date?.toDate ? e.date.toDate() : new Date(e.date)
-      return d >= monthStart && d <= monthEnd
+    return (expenses || []).filter((e) => {
+      try {
+        const d = safeDate(e.date)
+        return d >= monthStart && d <= monthEnd
+      } catch {
+        return false
+      }
     })
   }, [expenses, monthStart, monthEnd])
 
   const monthSettlements = useMemo(() => {
-    return settlements.filter((s) => {
-      const d = s.date?.toDate ? s.date.toDate() : new Date(s.date)
-      return d >= monthStart && d <= monthEnd
+    return (settlements || []).filter((s) => {
+      try {
+        const d = safeDate(s.date)
+        return d >= monthStart && d <= monthEnd
+      } catch {
+        return false
+      }
     })
   }, [settlements, monthStart, monthEnd])
 

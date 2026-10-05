@@ -41,7 +41,7 @@ import {
   calculateBalancesFlat,
   calculateDailySummary,
 } from '../lib/calculations'
-import { formatCurrency, smartDateLabel, groupByDate } from '../lib/format'
+import { formatCurrency, smartDateLabel, groupByDate, safeDate } from '../lib/format'
 import { getCurrentLang } from '../lib/i18n'
 
 export function FinalizeSummary() {
@@ -124,7 +124,7 @@ export function FinalizeSummary() {
       const daySummary = calculateDailySummary(dayExpenses, members)
       return {
         dateStr,
-        dateObj: new Date(dateStr),
+        dateObj: safeDate(dateStr),
         dayExpenses,
         daySummary,
       }

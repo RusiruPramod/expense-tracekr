@@ -15,15 +15,24 @@ import { useAuth } from '../../context/AuthContext'
 import { useGroup } from '../../context/GroupContext'
 import { SettleSheet } from '../people/SettleSheet'
 import { calculateCumulativeMemberSummary } from '../../lib/calculations'
-import { formatCurrency } from '../../lib/format'
+import { formatCurrency, safeDate } from '../../lib/format'
 import { getCurrentLang } from '../../lib/i18n'
 
 function filterExpensesForDate(expenses, targetDate) {
-  const dateStr = format(targetDate, 'yyyy-MM-dd')
-  return (expenses || []).filter((e) => {
-    const d = e.date?.toDate ? e.date.toDate() : new Date(e.date)
-    return format(d, 'yyyy-MM-dd') === dateStr
-  })
+  try {
+    const validTarget = safeDate(targetDate)
+    const dateStr = format(validTarget, 'yyyy-MM-dd')
+    return (expenses || []).filter((e) => {
+      try {
+        const d = safeDate(e.date)
+        return format(d, 'yyyy-MM-dd') === dateStr
+      } catch {
+        return false
+      }
+    })
+  } catch {
+    return []
+  }
 }
 
 function TodaySettlementComponent({ now = new Date() }) {
@@ -65,7 +74,8 @@ function TodaySettlementComponent({ now = new Date() }) {
   }, [cumulativeData])
 
   const handleWhatsAppShare = (m) => {
-    const dateFormatted = format(now, 'yyyy-MM-dd')
+    const validNow      = safeDate(now)
+    const dateFormatted = format(validNow, 'yyyy-MM-dd')
     const amountStr     = formatCurrency(m.amountDueToUser, currency)
     const isSin         = lang === 'si'
     const message = isSin
@@ -75,6 +85,8 @@ function TodaySettlementComponent({ now = new Date() }) {
   }
 
   if (!activeGroup || members.length === 0) return null
+
+  const validNow = safeDate(now)
 
   /* ── Render ──────────────────────────────────────────────── */
   return (
@@ -91,10 +103,10 @@ function TodaySettlementComponent({ now = new Date() }) {
                 <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-200/90 bg-white/10 px-2 py-0.5 rounded-md">
                   {isToday
                     ? (lang === 'si' ? 'අද දින දක්වා ශේෂයන්' : 'Running Balances Up to Today')
-                    : (lang === 'si' ? `${format(now, 'dd MMM yyyy')} දක්වා ශේෂයන්` : `Running Balances as of ${format(now, 'dd MMM yyyy')}`)}
+                    : (lang === 'si' ? `${format(validNow, 'dd MMM yyyy')} දක්වා ශේෂයන්` : `Running Balances as of ${format(validNow, 'dd MMM yyyy')}`)}
                 </span>
                 <span className="text-xs text-blue-200">
-                  {format(now, 'yyyy/MM/dd')}
+                  {format(validNow, 'yyyy/MM/dd')}
                 </span>
               </div>
 

@@ -39,7 +39,7 @@ import { CATEGORY_KEYS } from '../components/expense/CategoryIcon'
 import { DailySummaryCard } from '../components/expense/DailySummaryCard'
 import { TodaySettlement } from '../components/expense/TodaySettlement'
 import { getPersonBalance } from '../lib/calculations'
-import { formatCurrency, smartDateLabel, groupByDate } from '../lib/format'
+import { formatCurrency, smartDateLabel, groupByDate, safeDate } from '../lib/format'
 import { getCurrentLang } from '../lib/i18n'
 
 const MONTHS = [
@@ -489,9 +489,11 @@ const WeekStrip = memo(function WeekStrip({
   // Dates that have expenses (for dot indicator)
   const expenseDates = useMemo(() => {
     const set = new Set()
-    for (const e of expenses) {
-      const d = e.date?.toDate ? e.date.toDate() : new Date(e.date)
-      set.add(format(d, 'yyyy-MM-dd'))
+    for (const e of (expenses || [])) {
+      try {
+        const d = safeDate(e.date)
+        set.add(format(d, 'yyyy-MM-dd'))
+      } catch { /* ignore */ }
     }
     return set
   }, [expenses])
