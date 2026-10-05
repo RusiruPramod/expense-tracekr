@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, Mail, Lock, User, Sparkles, KeyRound } from 'lucide-react'
+import { Eye, EyeOff, Mail, Lock, User, KeyRound } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext'
 
@@ -21,11 +21,7 @@ const FIREBASE_ERROR_MAP = {
   'auth/network-request-failed':'auth.errors.networkError',
 }
 
-export const PRESET_USERS = [
-  { name: 'Sahan', email: 'sahan@gmail.com', password: 'sahan123456', role: 'Member' },
-  { name: 'Kalum', email: 'kalum@gmail.com', password: 'kalum123456', role: 'Member' },
-  { name: 'Owner', email: 'owner@gmail.com', password: 'owner123456', role: 'Admin/Owner' },
-]
+
 
 export function Auth() {
   const { t } = useTranslation()
@@ -64,35 +60,7 @@ export function Auth() {
     }
   }
 
-  const handleQuickLogin = async (preset) => {
-    setLoading(true)
-    setEmail(preset.email)
-    setPassword(preset.password)
 
-    try {
-      // Try sign in
-      await signIn(preset.email, preset.password)
-      toast.success(`Welcome, ${preset.name}!`)
-    } catch (err) {
-      if (
-        err.code === 'auth/user-not-found' ||
-        err.code === 'auth/invalid-credential' ||
-        err.code === 'auth/invalid-email'
-      ) {
-        // Auto register if account does not exist yet
-        try {
-          await signUp(preset.email, preset.password, preset.name)
-          toast.success(`Account created & logged in as ${preset.name}!`)
-        } catch (signUpErr) {
-          toast.error(getErrorMsg(signUpErr.code))
-        }
-      } else {
-        toast.error(getErrorMsg(err.code))
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleGoogle = async () => {
     setLoading(true)
@@ -220,40 +188,7 @@ export function Auth() {
               </button>
             </form>
 
-            {/* ── Quick 1-Click Auto Login Buttons ── */}
-            <div className="mt-5 pt-4 border-t border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
-                  <Sparkles size={12} className="text-amber-500" />
-                  Quick 1-Click Login / Demo
-                </span>
-                <span className="text-[10px] text-blue-600 font-medium">Auto-Fill & Sign In</span>
-              </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                {PRESET_USERS.map((preset) => (
-                  <button
-                    key={preset.email}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => handleQuickLogin(preset)}
-                    className="p-2 rounded-xl border border-blue-100 bg-blue-50/60 hover:bg-blue-100/80 text-left transition-all active:scale-95 group shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-900 group-hover:text-blue-700">
-                        {preset.name}
-                      </span>
-                      <span className="text-[9px] font-bold text-blue-600 bg-white px-1 py-0.5 rounded shadow-2xs">
-                        ⚡ Auto
-                      </span>
-                    </div>
-                    <span className="text-[9px] text-gray-500 block truncate mt-0.5">
-                      {preset.password}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {/* Google sign-in */}
             {mode !== 'reset' && (
