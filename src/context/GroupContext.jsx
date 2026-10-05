@@ -23,27 +23,56 @@ const GroupContext = createContext(null)
 // Global in-memory user profile cache (persists across component mounts)
 const userProfileCache = new Map()
 
+const getCachedGroup = (uid) => {
+  if (!uid) return null
+  try {
+    const raw = localStorage.getItem(`splitly_cached_group_${uid}`)
+    return raw ? JSON.parse(raw) : null
+  } catch {
+    return null
+  }
+}
+
+const getCachedMembers = (uid) => {
+  if (!uid) return []
+  try {
+    const raw = localStorage.getItem(`splitly_cached_members_${uid}`)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
 export function GroupProvider({ children }) {
   const { user } = useAuth()
 
   const [groups,      setGroups]      = useState([])
-  const [activeGroup, setActiveGroup] = useState(null)
-  const [members,     setMembers]     = useState([])
+  const [activeGroup, setActiveGroup] = useState(() => getCachedGroup(user?.uid))
+  const [members,     setMembers]     = useState(() => getCachedMembers(user?.uid))
   const [expenses,    setExpenses]    = useState([])
   const [settlements, setSettlements] = useState([])
-  const [loading,     setLoading]     = useState(true)
+  const [loading,     setLoading]     = useState(() => !getCachedGroup(user?.uid))
   const [error,       setError]       = useState(null)
 
   // Use refs to avoid stale closures in async callbacks
   const userRef      = useRef(user)
-  const activeIdRef  = useRef(null)
+  const activeIdRef  = useRef(activeGroup?.id || null)
   const isSeedingRef = useRef(false)
   const expensesRef  = useRef(expenses)
   const settlementsRef = useRef(settlements)
 
   useEffect(() => {
     userRef.current = user
-  }, [user])
+    if (user?.uid && !activeGroup) {
+      const cached = getCachedGroup(user.uid)
+      if (cached) {
+        setActiveGroup(cached)
+        activeIdRef.current = cached.id
+        setMembers(getCachedMembers(user.uid))
+        setLoading(false)
+      }
+    }
+  }, [user, activeGroup])
 
   useEffect(() => {
     expensesRef.current = expenses
@@ -129,6 +158,11 @@ export function GroupProvider({ children }) {
       }
 
       setMembers(resolved)
+      if (userRef.current?.uid) {
+        try {
+          localStorage.setItem(`splitly_cached_members_${userRef.current.uid}`, JSON.stringify(resolved))
+        } catch { /* ignore */ }
+      }
     } catch (err) {
       console.error('resolveMembers error:', err)
     }
@@ -147,7 +181,10 @@ export function GroupProvider({ children }) {
     setActiveGroup(group)
 
     if (user?.uid) {
-      localStorage.setItem(`expense_tracker_group_${user.uid}`, group.id)
+      try {
+        localStorage.setItem(`splitly_cached_group_${user.uid}`, JSON.stringify(group))
+        localStorage.setItem(`expense_tracker_group_${user.uid}`, group.id)
+      } catch { /* ignore */ }
     }
     localStorage.setItem('expense_tracker_group', group.id)
     await resolveMembers(group)

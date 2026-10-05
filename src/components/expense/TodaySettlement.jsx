@@ -1,15 +1,15 @@
 /**
  * src/components/expense/TodaySettlement.jsx
  *
- * Professional "Today's Settlement" card.
- * Royal blue header · clean white body · clear typography hierarchy.
- * Same calculation logic — UI/UX redesigned.
+ * "Cumulative Settlement & Running Balance" Card.
+ * Calculates all previous days + today rolled forward into a single running total.
+ * Shows each individual member's exact payable / receivable amount up to today.
  */
 
 import { useState, useMemo, memo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { format } from 'date-fns'
-import { Share2, ChevronRight, ArrowUpRight } from 'lucide-react'
+import { format, isToday as isDateToday } from 'date-fns'
+import { Share2, ChevronRight, ArrowUpRight, CheckCircle2, AlertCircle, ArrowDownLeft, ArrowUpRight as ArrowUpRightIcon } from 'lucide-react'
 
 import { useAuth } from '../../context/AuthContext'
 import { useGroup } from '../../context/GroupContext'
@@ -35,16 +35,19 @@ function TodaySettlementComponent({ now = new Date() }) {
   const currency = activeGroup?.currency || 'LKR'
   const [settleTarget, setSettleTarget] = useState(null)
 
-  /* ── Calculations (unchanged) ─────────────────────────────── */
-  const todayExpenses = useMemo(
+  const isToday = isDateToday(now)
+
+  /* ── Day Expenses (Selected Date Only) ──────────────────────── */
+  const dayExpenses = useMemo(
     () => filterExpensesForDate(expenses, now),
     [expenses, now]
   )
-  const todayTotal = useMemo(
-    () => todayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0),
-    [todayExpenses]
+  const dayTotal = useMemo(
+    () => dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0),
+    [dayExpenses]
   )
 
+  /* ── Cumulative Data (All previous days up to selected date) ── */
   const cumulativeData = useMemo(() => {
     if (!user?.uid) return null
     return calculateCumulativeMemberSummary(
@@ -52,8 +55,8 @@ function TodaySettlementComponent({ now = new Date() }) {
     )
   }, [expenses, settlements, members, user?.uid, now])
 
-  const memberSummaries = cumulativeData?.memberSummaries?.filter((m) => !m.isUser) || []
-  const pendingMembers  = memberSummaries.filter((m) => m.status !== 'settled')
+  const allMembers = cumulativeData?.memberSummaries || []
+  const cumulativeTotal = cumulativeData?.totalGroupSpent || 0
 
   const yourNet = useMemo(() => {
     const receive = cumulativeData?.totalToCollectFromMembers || 0
@@ -75,186 +78,234 @@ function TodaySettlementComponent({ now = new Date() }) {
 
   /* ── Render ──────────────────────────────────────────────── */
   return (
-    <div className="px-3 sm:px-4 md:px-0 py-2">
-      <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e0e7ff', background: '#fff' }}>
+    <div className="px-3 sm:px-4 md:px-0 py-2.5">
+      <div className="rounded-2xl overflow-hidden border border-blue-100/80 bg-white shadow-xs">
 
-        {/* ════ HEADER — Royal Blue ════ */}
-        <div style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)', padding: '14px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* ════ HEADER — Deep Royal Blue Gradient ════ */}
+        <div className="bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-900 p-4 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 
-            {/* Left: title + date + today spent */}
+            {/* Left: title + totals */}
             <div>
-              <p style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>
-                {lang === 'si' ? 'අද දින සාරාංශය' : 'Today Settlement'} &nbsp;·&nbsp; {format(now, 'dd MMM yyyy')}
-              </p>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0, letterSpacing: '-0.01em' }}>
-                {lang === 'si' ? 'අද වියදම:' : 'Today Spent:'}
-                &nbsp;
-                <span style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(todayTotal, currency)}</span>
-              </p>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-200/90 bg-white/10 px-2 py-0.5 rounded-md">
+                  {isToday
+                    ? (lang === 'si' ? 'අද දින දක්වා ශේෂයන්' : 'Running Balances Up to Today')
+                    : (lang === 'si' ? `${format(now, 'dd MMM yyyy')} දක්වා ශේෂයන්` : `Running Balances as of ${format(now, 'dd MMM yyyy')}`)}
+                </span>
+                <span className="text-xs text-blue-200">
+                  {format(now, 'yyyy/MM/dd')}
+                </span>
+              </div>
+
+              {/* Running Total + Day Total */}
+              <div className="flex items-baseline gap-4 mt-2">
+                <div>
+                  <span className="text-[11px] font-medium text-blue-200/80 block">
+                    {lang === 'si' ? 'සමස්ත වියදම (සියලු දින):' : 'Cumulative Total (All Days):'}
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black tracking-tight text-white font-mono">
+                    {formatCurrency(cumulativeTotal, currency)}
+                  </span>
+                </div>
+
+                <div className="border-l border-white/20 pl-3">
+                  <span className="text-[11px] font-medium text-blue-200/80 block">
+                    {isToday
+                      ? (lang === 'si' ? 'අද දින වියදම:' : "Today's Spent:")
+                      : (lang === 'si' ? 'මෙම දින වියදම:' : "Day's Spent:")}
+                  </span>
+                  <span className="text-base sm:text-lg font-bold tracking-tight text-blue-100 font-mono">
+                    {formatCurrency(dayTotal, currency)}
+                  </span>
+                </div>
+              </div>
             </div>
 
-            {/* Right: net badge */}
-            {yourNet.net > 0.009 ? (
-              <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 10px', border: '1px solid rgba(255,255,255,0.25)', textAlign: 'right' }}>
-                <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.65)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>To Collect</p>
-                <p style={{ fontSize: 12, fontWeight: 800, color: '#fff', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
-                  +{formatCurrency(yourNet.receive, currency)}
-                </p>
-              </div>
-            ) : yourNet.net < -0.009 ? (
-              <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 8, padding: '5px 10px', border: '1px solid rgba(255,80,80,0.35)', textAlign: 'right' }}>
-                <p style={{ fontSize: 9, color: 'rgba(255,200,200,0.8)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>You Owe</p>
-                <p style={{ fontSize: 12, fontWeight: 800, color: '#fca5a5', margin: 0, fontVariantNumeric: 'tabular-nums' }}>
-                  -{formatCurrency(yourNet.pay, currency)}
-                </p>
-              </div>
-            ) : (
-              <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 8, padding: '5px 12px', border: '1px solid rgba(255,255,255,0.2)' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.8)', margin: 0 }}>✓ All Clear</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ════ BODY ════ */}
-        {memberSummaries.length > 0 ? (
-          <div style={{ padding: '0 16px' }}>
-
-            {/* Section header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 8px' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>
-                {lang === 'si' ? 'අද වන විට ශේෂ' : 'Running Balances as of Today'}
-              </p>
-              <button
-                onClick={() => navigate('/summary')}
-                style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 12, fontWeight: 700, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-              >
-                {lang === 'si' ? 'සම්පූර්ණ' : 'Full Summary'}
-                <ChevronRight size={13} />
-              </button>
-            </div>
-
-            {/* Member rows */}
-            <div>
-              {pendingMembers.slice(0, 5).map((m, idx) => {
-                const owesYou = m.status === 'owes_user'
-                const amount  = owesYou ? m.amountDueToUser : m.amountOwedByUser
-                const isLast  = idx === Math.min(pendingMembers.length, 5) - 1
-
-                return (
-                  <div
-                    key={m.memberId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '10px 0',
-                      borderBottom: isLast ? 'none' : '1px solid #f3f4f6',
-                    }}
-                  >
-                    {/* Avatar initial */}
-                    <div style={{
-                      width: 34, height: 34, borderRadius: '50%',
-                      background: '#eff6ff', border: '1.5px solid #bfdbfe',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 13, fontWeight: 700, color: '#1d4ed8', flexShrink: 0,
-                    }}>
-                      {m.name?.[0]?.toUpperCase() || '?'}
-                    </div>
-
-                    {/* Name + label */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', margin: 0, lineHeight: 1.2 }}>
-                        {m.name}
-                      </p>
-                      <p style={{ fontSize: 12, fontWeight: 500, color: owesYou ? '#4b5563' : '#9ca3af', margin: '1px 0 0' }}>
-                        {owesYou
-                          ? (lang === 'si' ? 'ඔබට ගෙවිය යුතුය' : 'owes you')
-                          : (lang === 'si' ? 'ඔබ ගෙවිය යුතුය' : 'you owe')}
-                      </p>
-                    </div>
-
-                    {/* Amount */}
-                    <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', fontVariantNumeric: 'tabular-nums', margin: 0, flexShrink: 0 }}>
-                      {formatCurrency(amount, currency)}
-                    </p>
-
-                    {/* WhatsApp share */}
-                    {owesYou && (
-                      <button
-                        onClick={() => handleWhatsAppShare(m)}
-                        title="Send WhatsApp reminder"
-                        style={{
-                          width: 30, height: 30, borderRadius: 8,
-                          border: '1px solid #e5e7eb', background: '#fff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          cursor: 'pointer', flexShrink: 0, color: '#6b7280',
-                        }}
-                      >
-                        <Share2 size={13} />
-                      </button>
-                    )}
-
-                    {/* Settle button */}
-                    <button
-                      onClick={() =>
-                        setSettleTarget({
-                          person:    { id: m.memberId, name: m.name },
-                          amount,
-                          direction: owesYou ? 'they_pay' : 'i_pay',
-                        })
-                      }
-                      style={{
-                        padding: '6px 14px',
-                        borderRadius: 8,
-                        background: '#1d4ed8',
-                        color: '#fff',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        border: 'none',
-                        cursor: 'pointer',
-                        flexShrink: 0,
-                        letterSpacing: '0.01em',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Settle
-                    </button>
-                  </div>
-                )
-              })}
-
-              {/* All settled state */}
-              {pendingMembers.length === 0 && (
-                <p style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, color: '#1d4ed8', padding: '10px 0 8px' }}>
-                  ✓ All accounts settled up to today
-                </p>
+            {/* Right: User's Net Status Badge */}
+            <div className="self-start sm:self-auto">
+              {yourNet.net > 0.009 ? (
+                <div className="bg-emerald-500/20 border border-emerald-400/40 rounded-xl px-3 py-1.5 text-right">
+                  <p className="text-[10px] uppercase font-bold text-emerald-300 tracking-wider">
+                    {lang === 'si' ? 'ඔබට ලැබිය යුතු මුදල' : 'You Get Back'}
+                  </p>
+                  <p className="text-sm sm:text-base font-extrabold text-emerald-200 font-mono">
+                    +{formatCurrency(yourNet.receive, currency)}
+                  </p>
+                </div>
+              ) : yourNet.net < -0.009 ? (
+                <div className="bg-rose-500/20 border border-rose-400/40 rounded-xl px-3 py-1.5 text-right">
+                  <p className="text-[10px] uppercase font-bold text-rose-300 tracking-wider">
+                    {lang === 'si' ? 'ඔබ ගෙවිය යුතු මුදල' : 'You Must Pay'}
+                  </p>
+                  <p className="text-sm sm:text-base font-extrabold text-rose-200 font-mono">
+                    -{formatCurrency(yourNet.pay, currency)}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-emerald-400" />
+                  <span className="text-xs font-bold text-white">
+                    {lang === 'si' ? 'ඔබගේ ශේෂය බේරා ඇත' : 'All Clear'}
+                  </span>
+                </div>
               )}
             </div>
 
-            {/* Footer */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #f3f4f6', padding: '10px 0 12px' }}>
-              <p style={{ fontSize: 11, color: '#9ca3af', fontWeight: 500, margin: 0 }}>
-                {lang === 'si' ? 'කලින් නොගෙවූ ගණන් ස්වයංක්‍රීයව අදට එකතු වේ' : 'Past unsettled balances carry forward'}
+          </div>
+        </div>
+
+        {/* ════ BODY — Individual Member Breakdown ════ */}
+        <div className="px-4 py-3">
+
+          <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-2">
+            <div>
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-gray-700">
+                {lang === 'si' ? 'එක් එක් සාමාජිකයාගේ ශේෂයන්' : 'Individual Member Balances'}
+              </h4>
+              <p className="text-[11px] text-gray-500 font-medium">
+                {lang === 'si'
+                  ? 'කලින් දිනවල වියදම් එකතු වී එක් එක් අය ගෙවිය යුතු / ලැබිය යුතු මුදල්'
+                  : 'Cumulative balance owed / receivable by each person'}
               </p>
-              <button
-                onClick={() => navigate('/summary')}
-                style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, fontWeight: 700, color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-              >
-                {lang === 'si' ? 'සාරාංශ පිටුව' : 'View Finalize Page'}
-                <ArrowUpRight size={13} />
-              </button>
             </div>
+
+            <button
+              onClick={() => navigate('/summary')}
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1 py-1 px-2 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <span>{lang === 'si' ? 'සම්පූර්ණ සාරාංශය' : 'Full Summary'}</span>
+              <ChevronRight size={14} />
+            </button>
           </div>
-        ) : (
-          /* No data */
-          <div style={{ padding: '16px', textAlign: 'center' }}>
-            <p style={{ fontSize: 13, color: '#9ca3af', margin: 0 }}>
-              No balances yet. Add an expense to get started.
-            </p>
+
+          {/* Members list showing each person's exact payable amount */}
+          <div className="divide-y divide-gray-100">
+            {allMembers.map((m) => {
+              const owesOverall = m.overallNet < -0.009
+              const getsOverall = m.overallNet > 0.009
+              const isSettled = !owesOverall && !getsOverall
+
+              const owesYou = m.amountDueToUser > 0.009
+              const youOwe = m.amountOwedByUser > 0.009
+
+              return (
+                <div key={m.memberId} className="py-2.5 flex items-center justify-between gap-3">
+                  
+                  {/* Left: Avatar + Name + Paid & Share */}
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                      m.isUser
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'bg-blue-50 text-blue-700 border border-blue-200'
+                    }`}>
+                      {m.name?.[0]?.toUpperCase() || '?'}
+                    </div>
+
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-sm font-bold text-gray-900 truncate">
+                          {m.name}
+                        </span>
+                        {m.isUser && (
+                          <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded">
+                            {lang === 'si' ? 'ඔබ' : 'You'}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-gray-500 font-medium truncate">
+                        {lang === 'si' ? 'ගෙවූ:' : 'Paid:'} {formatCurrency(m.totalPaid, currency)} &nbsp;·&nbsp;
+                        {lang === 'si' ? 'කොටස:' : 'Share:'} {formatCurrency(m.totalShare, currency)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Middle / Right: Net Standing Badge */}
+                  <div className="text-right shrink-0">
+                    {owesOverall ? (
+                      <div>
+                        <span className="inline-block text-[11px] font-extrabold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-lg font-mono">
+                          {lang === 'si' ? 'ගෙවිය යුතුයි:' : 'Must Pay:'} {formatCurrency(Math.abs(m.overallNet), currency)}
+                        </span>
+                      </div>
+                    ) : getsOverall ? (
+                      <div>
+                        <span className="inline-block text-[11px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg font-mono">
+                          {lang === 'si' ? 'ලැබිය යුතුයි:' : 'Gets Back:'} {formatCurrency(m.overallNet, currency)}
+                        </span>
+                      </div>
+                    ) : (
+                      <div>
+                        <span className="inline-block text-[11px] font-semibold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-lg">
+                          {lang === 'si' ? 'බේරා ඇත' : 'Settled (Rs. 0)'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Direct relation with current user */}
+                    {!m.isUser && (owesYou || youOwe) && (
+                      <p className="text-[10px] font-medium text-gray-500 mt-0.5">
+                        {owesYou
+                          ? (lang === 'si' ? `ඔබට ගෙවිය යුතුයි: ${formatCurrency(m.amountDueToUser, currency)}` : `Owes you: ${formatCurrency(m.amountDueToUser, currency)}`)
+                          : (lang === 'si' ? `ඔබ ගෙවිය යුතුයි: ${formatCurrency(m.amountOwedByUser, currency)}` : `You owe: ${formatCurrency(m.amountOwedByUser, currency)}`)}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Right Actions: Settle & WhatsApp (for friends who have unsettled balance with user) */}
+                  {!m.isUser && (owesYou || youOwe) && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      {owesYou && (
+                        <button
+                          type="button"
+                          onClick={() => handleWhatsAppShare(m)}
+                          title="WhatsApp Reminder"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 text-gray-500 transition-colors"
+                        >
+                          <Share2 size={13} />
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSettleTarget({
+                            person: { id: m.memberId, name: m.name },
+                            amount: owesYou ? m.amountDueToUser : m.amountOwedByUser,
+                            direction: owesYou ? 'they_pay' : 'i_pay',
+                          })
+                        }
+                        className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-colors shadow-2xs"
+                      >
+                        {lang === 'si' ? 'බේරන්න' : 'Settle'}
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              )
+            })}
           </div>
-        )}
+
+          {/* Footer note */}
+          <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+            <span>
+              ℹ️ {lang === 'si'
+                ? 'කලින් නොබේරූ හිඟ මුදල් ස්වයංක්‍රීයව අද දිනය දක්වා ඉදිරියට ගණනය වේ.'
+                : 'Unsettled balances from previous dates automatically carry forward.'}
+            </span>
+
+            <button
+              onClick={() => navigate('/summary')}
+              className="text-blue-600 font-bold hover:underline shrink-0 ml-2"
+            >
+              {lang === 'si' ? 'සවිස්තර වාර්තාව' : 'View Full Report'}
+            </button>
+          </div>
+
+        </div>
+
       </div>
 
       {/* Settle Sheet */}
@@ -273,3 +324,4 @@ function TodaySettlementComponent({ now = new Date() }) {
 
 export const TodaySettlement = memo(TodaySettlementComponent)
 export default TodaySettlement
+

@@ -16,13 +16,15 @@ import {
   eachDayOfInterval,
   subWeeks,
   addWeeks,
+  addDays,
+  subDays,
   getYear,
   getMonth,
   getDate,
   isSameMonth,
   isToday as isDateToday,
 } from 'date-fns'
-import { Search, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react'
+import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, Calendar, Receipt, Plus } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 import { useAuth } from '../context/AuthContext'
@@ -61,15 +63,23 @@ export function Home() {
   const [filterCat,   setFilterCat]     = useState('')
   const [filterOpen,  setFilterOpen]    = useState(false)
 
-  // ── Selected day filter (click a day on calendar) ──────────
-  const [selectedDate, setSelectedDate] = useState(null)
+  // ── Selected day filter (defaults to Today for date-wise isolation) ──────────
+  const [selectedDate, setSelectedDate] = useState(() => new Date())
+  const [viewMode,     setViewMode]     = useState('day') // 'day' | 'all'
 
   const handleSelectDate = useCallback((day) => {
-    setSelectedDate((prev) => {
-      // Toggle: tap same day again → deselect
-      if (prev && isSameDay(prev, day)) return null
-      return day
-    })
+    setSelectedDate(day)
+    setViewMode('day')
+  }, [])
+
+  const handlePrevDay = useCallback(() => {
+    setSelectedDate((prev) => subDays(prev || new Date(), 1))
+    setViewMode('day')
+  }, [])
+
+  const handleNextDay = useCallback(() => {
+    setSelectedDate((prev) => addDays(prev || new Date(), 1))
+    setViewMode('day')
   }, [])
 
   // ── Real-time current month — auto-advances at midnight ────────
@@ -148,19 +158,21 @@ export function Home() {
 
   const filteredExpenses = useMemo(() => {
     const q = deferredSearch.trim().toLowerCase()
+    const activeDay = selectedDate || now
     return expenses.filter((e) => {
       const d = e.date?.toDate ? e.date.toDate() : new Date(e.date)
-      // If a specific day is selected, only show that day
-      if (selectedDate) {
-        if (!isSameDay(d, selectedDate)) return false
+      // Strict date-wise mode: only show expenses for the active day
+      if (viewMode === 'day') {
+        if (!isSameDay(d, activeDay)) return false
       } else {
+        // All history: filter within selected month
         if (d < monthStart || d > monthEnd) return false
       }
       if (filterCat && e.category !== filterCat) return false
       if (q && !e.title?.toLowerCase().includes(q)) return false
       return true
     })
-  }, [expenses, monthStart, monthEnd, filterCat, deferredSearch, selectedDate])
+  }, [expenses, viewMode, selectedDate, now, monthStart, monthEnd, filterCat, deferredSearch])
 
   // ── Group by date ─────────────────────────────────────────────
   const grouped     = useMemo(() => groupByDate(filteredExpenses), [filteredExpenses])
@@ -229,20 +241,70 @@ export function Home() {
         onSelectDate={handleSelectDate}
       />
 
-      {/* ── Selected day indicator chip ── */}
-      {selectedDate && (
-        <div className="px-3 sm:px-4 md:px-0 pt-2 pb-1 flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">
-            📅 {format(selectedDate, 'yyyy MMM dd (EEE)')}
-          </span>
+      {/* ── Day Navigation Bar (Prev Day / Date Badge / Next Day & View Mode) ── */}
+      <div className="px-3 sm:px-4 md:px-0 pt-2 pb-1 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
           <button
-            onClick={() => setSelectedDate(null)}
-            className="text-xs text-gray-500 hover:text-gray-700 font-medium underline transition-colors"
+            type="button"
+            onClick={handlePrevDay}
+            className="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors shadow-2xs"
+            title="Previous day"
           >
-            {t('home.showAll') || 'Show all'}
+            <ChevronLeft size={16} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { setSelectedDate(new Date()); setViewMode('day') }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border shadow-2xs ${
+              viewMode === 'day' && isSameDay(selectedDate, now)
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            <Calendar size={13} />
+            <span>
+              {isSameDay(selectedDate, now)
+                ? (lang === 'si' ? 'අද (Today)' : 'Today')
+                : format(selectedDate, 'MMM dd (EEE)')}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleNextDay}
+            className="p-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 transition-colors shadow-2xs"
+            title="Next day"
+          >
+            <ChevronRight size={16} />
           </button>
         </div>
-      )}
+
+        <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-xl border border-gray-200 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setViewMode('day')}
+            className={`px-2.5 py-1 rounded-lg transition-all ${
+              viewMode === 'day'
+                ? 'bg-white text-blue-700 font-bold shadow-2xs'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {lang === 'si' ? 'දින අනුව' : 'Day View'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('all')}
+            className={`px-2.5 py-1 rounded-lg transition-all ${
+              viewMode === 'all'
+                ? 'bg-white text-blue-700 font-bold shadow-2xs'
+                : 'text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {lang === 'si' ? 'සියලු දින' : 'All History'}
+          </button>
+        </div>
+      </div>
 
       {/* ── Balance summary cards ── */}
       {loading && expenses.length === 0 ? (
@@ -270,8 +332,8 @@ export function Home() {
         </div>
       )}
 
-      {/* ── Today's Settlement Summary ── */}
-      <TodaySettlement now={now} />
+      {/* ── Today's Settlement Summary (Calculates running total up to selected date) ── */}
+      <TodaySettlement now={selectedDate || now} />
 
       {/* ── Search bar ── */}
       <div className="px-3 sm:px-4 md:px-0 pb-3">
@@ -291,10 +353,36 @@ export function Home() {
       {loading && expenses.length === 0 ? (
         <SkeletonList count={5} />
       ) : sortedDates.length === 0 ? (
-        <EmptyState
-          title={t('empty.expenses')}
-          hint={t('empty.expensesHint')}
-        />
+        viewMode === 'day' ? (
+          <div className="bg-white rounded-2xl p-6 text-center border border-gray-100 shadow-2xs my-2 mx-3 sm:mx-4 md:mx-0">
+            <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-2.5">
+              <Receipt size={22} />
+            </div>
+            <h3 className="text-sm font-bold text-gray-800">
+              {isSameDay(selectedDate, now)
+                ? (lang === 'si' ? 'අද දින සඳහා වියදම් කිසිවක් නැත' : 'No expenses recorded for today')
+                : (lang === 'si' ? `${format(selectedDate, 'yyyy/MM/dd')} දින වියදම් නැත` : `No expenses for ${format(selectedDate, 'yyyy/MM/dd')}`)}
+            </h3>
+            <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+              {lang === 'si'
+                ? 'නව වියදමක් ඇතුළත් කිරීමට පහත බොත්තම ඔබන්න.'
+                : 'Tap the button below to add an expense for this date.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => setSheetOpen(true)}
+              className="mt-3.5 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"
+            >
+              <Plus size={15} />
+              <span>{lang === 'si' ? '+ වියදමක් එක් කරන්න' : '+ Add Expense'}</span>
+            </button>
+          </div>
+        ) : (
+          <EmptyState
+            title={t('empty.expenses')}
+            hint={t('empty.expensesHint')}
+          />
+        )
       ) : (
         <div className="md:rounded-2xl md:border md:border-gray-100 md:shadow-sm overflow-hidden bg-white">
           {sortedDates.map((dateKey) => {
